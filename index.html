@@ -52,18 +52,21 @@
                 <button onclick="switchTab('estoque')" id="tab-estoque" class="px-6 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap">
                     <i data-lucide="package" class="w-4 h-4"></i> Materiais/Stock
                 </button>
+                <button onclick="switchTab('online')" id="tab-online" class="px-6 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap border-l border-gray-100 pl-6 ml-2">
+                    <i data-lucide="globe" class="w-4 h-4 text-blue-500"></i> <span class="text-blue-600">Agendar Online (Público)</span>
+                </button>
             </div>
         </nav>
 
         <!-- Conteúdo Principal -->
         <main class="max-w-6xl mx-auto p-4 md:p-6 w-full flex-1">
             
-            <!-- Secção Agendamentos -->
+            <!-- Secção Agendamentos (Visão Gerente) -->
             <section id="section-agendamentos" class="fade-in space-y-4">
                 <div class="flex justify-between items-center">
                     <h2 class="text-lg font-bold text-gray-800">Próximos Clientes</h2>
                     <button onclick="showForm('agendamento')" class="bg-[#c41e3a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Novo
+                        <i data-lucide="plus" class="w-4 h-4"></i> Novo Interno
                     </button>
                 </div>
                 <div id="agendamentos-list" class="grid gap-3"></div>
@@ -78,6 +81,66 @@
                     </button>
                 </div>
                 <div id="estoque-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+
+            <!-- Secção Agendamento Online (Visão Cliente) -->
+            <section id="section-online" class="fade-in hidden">
+                <div class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200 max-w-xl mx-auto mt-4">
+                    <div class="text-center mb-8">
+                        <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="calendar-check" class="w-8 h-8"></i>
+                        </div>
+                        <h2 class="text-2xl font-bold text-gray-800">Agende o seu horário</h2>
+                        <p class="text-gray-500 text-sm mt-2">Escolha o serviço, a data e um horário disponível para nos visitar.</p>
+                    </div>
+
+                    <form id="online-booking-form" onsubmit="handleOnlineBooking(event)" class="space-y-5">
+                        
+                        <!-- Serviço -->
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">1. Qual serviço deseja?</label>
+                            <select name="service_name" required class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 focus:border-[#c41e3a] bg-gray-50 hover:bg-white transition">
+                                <option value="">Selecione uma opção</option>
+                                <option value="Corte de Cabelo">Corte de Cabelo</option>
+                                <option value="Coloração/Madeixas">Coloração / Madeixas</option>
+                                <option value="Brushing">Brushing / Secagem</option>
+                                <option value="Manicure">Manicure</option>
+                                <option value="Pedicure">Pedicure</option>
+                                <option value="Massagem Relaxante">Massagem Relaxante</option>
+                            </select>
+                        </div>
+
+                        <!-- Data -->
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">2. Escolha a data</label>
+                            <input type="date" id="online-date" name="date" required onchange="renderAvailableTimes()" class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 focus:border-[#c41e3a] bg-gray-50 hover:bg-white transition">
+                        </div>
+
+                        <!-- Horários Disponíveis -->
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-2">3. Horários Disponíveis</label>
+                            <div id="time-slots" class="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                                <p class="text-sm text-gray-400 col-span-full bg-gray-50 p-4 rounded-xl text-center border border-dashed">
+                                    Selecione uma data acima para ver os horários.
+                                </p>
+                            </div>
+                            <input type="hidden" id="online-time" name="time" required>
+                        </div>
+
+                        <!-- Dados Pessoais -->
+                        <div class="pt-6 border-t border-gray-100 mt-6">
+                            <label class="block text-sm font-bold text-gray-700 mb-4">4. Os seus dados</label>
+                            <div class="space-y-4">
+                                <input name="client_name" placeholder="Nome Completo" required class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 focus:border-[#c41e3a] bg-gray-50 hover:bg-white transition">
+                                <input name="phone" placeholder="Telemóvel (WhatsApp)" required class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 focus:border-[#c41e3a] bg-gray-50 hover:bg-white transition">
+                            </div>
+                        </div>
+
+                        <button type="submit" id="btn-submit-online" disabled class="w-full bg-[#c41e3a] text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-[#c41e3a]/30 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed hover:bg-[#a01a30] hover:-translate-y-0.5 transition-all duration-200 mt-6">
+                            Confirmar Agendamento
+                        </button>
+                    </form>
+                </div>
             </section>
 
         </main>
@@ -106,7 +169,10 @@
     let allData = [];
     let currentFormType = '';
 
-    // Simulador de atraso de rede (para manter a sensação de carregamento real)
+    // Horários de funcionamento padrão do salão (Para a área online)
+    const WORKING_HOURS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+
+    // Simulador de atraso de rede
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     // Função de Loading
@@ -127,15 +193,14 @@
     async function init() {
         try {
             setLoading(true, "A preparar o ambiente...");
-            await delay(600); // Simulando carregamento inicial
+            await delay(600); 
             
             const storedData = localStorage.getItem(STORAGE_KEY);
             if (storedData) {
                 allData = JSON.parse(storedData);
             } else {
-                // Dados de exemplo se for a primeira vez
                 allData = [
-                    { __backendId: 'demo1', type: 'agendamento', client_name: 'Maria Silva', phone: '912345678', service_name: 'Corte e Brushing', date: new Date().toISOString().split('T')[0], time: '14:30' },
+                    { __backendId: 'demo1', type: 'agendamento', client_name: 'Maria Silva', phone: '912345678', service_name: 'Corte e Brushing', date: new Date().toISOString().split('T')[0], time: '14:00' },
                     { __backendId: 'demo2', type: 'estoque', item_name: 'Champô Profissional 5L', category: 'Cabelo', quantity: 3, min_stock: 2 }
                 ];
                 saveData();
@@ -159,7 +224,6 @@
         document.getElementById('record-count').textContent = allData.length + ' registos';
     }
 
-    // Arranca a aplicação ao carregar a página
     window.onload = () => {
         lucide.createIcons();
         init();
@@ -167,15 +231,32 @@
 
     // --- NAVEGAÇÃO ---
     function switchTab(tab) {
-        const sections = ['agendamentos', 'estoque'];
+        const sections = ['agendamentos', 'estoque', 'online'];
         sections.forEach(s => {
             document.getElementById(`section-${s}`).classList.toggle('hidden', s !== tab);
             const btn = document.getElementById(`tab-${s}`);
             if(btn) {
-                btn.classList.toggle('tab-active', s === tab);
-                btn.classList.toggle('text-gray-500', s !== tab);
+                // Remove estilos ativos gerais
+                btn.classList.remove('tab-active', 'text-gray-500');
+                
+                // Lógica especial para colorir as abas ativas
+                if (s === tab) {
+                    btn.classList.add('tab-active');
+                } else {
+                    btn.classList.add('text-gray-500');
+                }
             }
         });
+        
+        // Bloqueia datas anteriores a hoje na aba online
+        if (tab === 'online') {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('online-date').setAttribute('min', today);
+            
+            // Força a renderização correta caso a pessoa mude de aba e volte
+            renderAvailableTimes();
+        }
+        
         lucide.createIcons();
     }
 
@@ -186,9 +267,9 @@
     }
 
     function renderAgendamentos() {
-        const items = allData.filter(d => d.type === 'agendamento').sort((a,b) => new Date(a.date) - new Date(b.date));
+        const items = allData.filter(d => d.type === 'agendamento').sort((a,b) => new Date(a.date) - new Date(b.date) || a.time.localeCompare(b.time));
         const list = document.getElementById('agendamentos-list');
-        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center">Nenhum agendamento encontrado.</p>' : items.map(item => `
+        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center border border-dashed rounded-xl">Nenhum agendamento encontrado.</p>' : items.map(item => `
             <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-[#c41e3a]/30 transition">
                 <div class="flex items-center gap-4">
                     <div class="bg-gray-50 p-3 rounded-full text-[#c41e3a] group-hover:bg-[#c41e3a] group-hover:text-white transition">
@@ -215,7 +296,7 @@
     function renderEstoque() {
         const items = allData.filter(d => d.type === 'estoque');
         const list = document.getElementById('estoque-list');
-        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center md:col-span-3">O stock está vazio.</p>' : items.map(item => `
+        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center border border-dashed rounded-xl md:col-span-3">O stock está vazio.</p>' : items.map(item => `
             <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
                 <div>
                     <div class="flex justify-between items-start mb-2">
@@ -236,12 +317,94 @@
         lucide.createIcons();
     }
 
-    // --- ACÇÕES DE DADOS (CRUD Local) ---
+    // --- LÓGICA DE AGENDAMENTO ONLINE (ÁREA PÚBLICA) ---
+    function renderAvailableTimes() {
+        const dateInput = document.getElementById('online-date').value;
+        const timeSlotsContainer = document.getElementById('time-slots');
+        const timeInput = document.getElementById('online-time');
+        const submitBtn = document.getElementById('btn-submit-online');
+
+        // Reseta o botão e input oculto
+        timeInput.value = '';
+        submitBtn.disabled = true;
+
+        if (!dateInput) {
+            timeSlotsContainer.innerHTML = '<p class="text-sm text-gray-400 col-span-full bg-gray-50 p-4 rounded-xl text-center border border-dashed">Selecione uma data acima para ver os horários.</p>';
+            return;
+        }
+
+        // Procura horários que já estão agendados para a data selecionada
+        const bookedTimes = allData
+            .filter(d => d.type === 'agendamento' && d.date === dateInput)
+            .map(d => d.time);
+
+        // Filtra os horários de funcionamento removendo os que já estão ocupados
+        const availableTimes = WORKING_HOURS.filter(t => !bookedTimes.includes(t));
+
+        if (availableTimes.length === 0) {
+            timeSlotsContainer.innerHTML = `
+                <div class="col-span-full bg-red-50 text-red-600 p-4 rounded-xl text-center border border-red-100">
+                    <i data-lucide="calendar-x" class="w-6 h-6 mx-auto mb-1"></i>
+                    <p class="text-sm font-bold">Data Esgotada</p>
+                    <p class="text-xs mt-1">Por favor, escolha outro dia.</p>
+                </div>`;
+            lucide.createIcons();
+            return;
+        }
+
+        // Renderiza os botões de horários disponíveis
+        timeSlotsContainer.innerHTML = availableTimes.map(time => `
+            <button type="button" onclick="selectTimeSlot('${time}', this)" class="time-slot-btn py-3 px-2 border border-gray-200 bg-white rounded-xl text-sm font-bold text-gray-700 hover:border-[#c41e3a] hover:text-[#c41e3a] hover:bg-red-50 transition-all duration-200">
+                ${time}
+            </button>
+        `).join('');
+    }
+
+    function selectTimeSlot(time, btnElement) {
+        document.getElementById('online-time').value = time;
+        document.getElementById('btn-submit-online').disabled = false;
+
+        // Limpa visualização de outros botões
+        document.querySelectorAll('.time-slot-btn').forEach(btn => {
+            btn.classList.remove('bg-[#c41e3a]', 'text-white', 'border-[#c41e3a]', 'ring-2', 'ring-red-200');
+            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200', 'hover:border-[#c41e3a]', 'hover:text-[#c41e3a]', 'hover:bg-red-50');
+        });
+
+        // Marca o botão atual como selecionado
+        btnElement.classList.remove('bg-white', 'text-gray-700', 'border-gray-200', 'hover:border-[#c41e3a]', 'hover:text-[#c41e3a]', 'hover:bg-red-50');
+        btnElement.classList.add('bg-[#c41e3a]', 'text-white', 'border-[#c41e3a]', 'ring-2', 'ring-red-200', 'transform', 'scale-105');
+    }
+
+    async function handleOnlineBooking(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        const newId = 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+        const data = { type: 'agendamento', __backendId: newId };
+        
+        fd.forEach((v, k) => data[k] = v);
+        
+        setLoading(true, "A confirmar o seu horário...");
+        await delay(1000); // Simulando processamento no servidor
+        
+        allData.push(data);
+        saveData();
+        renderAll();
+        
+        showToast("Horário reservado com sucesso! Esperamos por si.", "success");
+        e.target.reset();
+        renderAvailableTimes(); // Reseta os horários
+        setLoading(false);
+        
+        // Retorna o gestor para a aba de agendamentos para ver que a marcação entrou!
+        switchTab('agendamentos');
+    }
+
+    // --- ACÇÕES DE DADOS (CRUD Local Gerente) ---
     async function handleSubmit(e) {
         e.preventDefault();
         const fd = new FormData(e.target);
         
-        // Gera um ID único simples
         const newId = 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
         
         const data = { type: currentFormType, __backendId: newId };
@@ -249,7 +412,7 @@
         
         closeModal();
         setLoading(true, "A guardar...");
-        await delay(400); // Sensação de processamento
+        await delay(400); 
         
         allData.push(data);
         saveData();
@@ -284,14 +447,14 @@
         }
     }
 
-    // --- UTILITÁRIOS ---
+    // --- UTILITÁRIOS GERAIS ---
     function showForm(type) {
         currentFormType = type;
         const form = document.getElementById('modal-form');
         const title = document.getElementById('modal-title');
         
         if(type === 'agendamento') {
-            title.textContent = 'Novo Agendamento';
+            title.textContent = 'Novo Agendamento (Interno)';
             form.innerHTML = `
                 <input name="client_name" placeholder="Nome do Cliente" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
                 <input name="phone" placeholder="Telemóvel (WhatsApp)" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
@@ -342,7 +505,7 @@
     function sendWhatsApp(phone, name, time) {
         const cleanPhone = phone.replace(/\D/g, '');
         const msg = encodeURIComponent(`Olá ${name}! Confirmamos a sua marcação hoje às ${time ? time.substring(0,5) : ''}. Ficamos à espera!`);
-        window.open(`https://wa.me/351${cleanPhone}?text=${msg}`, '_blank'); // Prefixo 351 (Portugal), adapte se necessário para o Brasil (55).
+        window.open(`https://wa.me/351${cleanPhone}?text=${msg}`, '_blank'); 
     }
 
     function showToast(msg, type) {
