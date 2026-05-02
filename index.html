@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="pt-PT" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Pro - Salão & Estética</title>
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'DM Sans', sans-serif; }
+        .tab-active { border-bottom: 3px solid #c41e3a; color: #c41e3a; }
+        .fade-in { animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .hidden { display: none !important; }
+        
+        /* Spinner CSS */
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="h-full bg-[#f8fafc]">
+    <!-- Ecrã de Carregamento (Loading) -->
+    <div id="loader" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white">
+        <div class="spinner mb-4"></div>
+        <p class="font-medium" id="loader-text">A carregar sistema...</p>
+    </div>
+
+    <div id="app" class="h-full flex flex-col hidden fade-in">
+        <!-- Cabeçalho -->
+        <header class="bg-[#c41e3a] text-white px-6 py-4 shadow-md">
+            <div class="max-w-6xl mx-auto flex items-center justify-between">
+                <div>
+                    <h1 id="clinic-name" class="text-xl font-bold tracking-tight">O Meu Salão Pro</h1>
+                    <p id="welcome-msg" class="text-xs opacity-80">Controlo total do seu negócio</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="hidden md:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-full text-sm">
+                        <i data-lucide="database" class="w-4 h-4"></i>
+                        <span id="record-count">0 registos</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navegação -->
+        <nav class="bg-white border-b sticky top-0 z-10 shadow-sm">
+            <div class="max-w-6xl mx-auto flex overflow-x-auto no-scrollbar">
+                <button onclick="switchTab('agendamentos')" id="tab-agendamentos" class="px-6 py-4 text-sm font-medium tab-active flex items-center gap-2 whitespace-nowrap">
+                    <i data-lucide="calendar" class="w-4 h-4"></i> Agendamentos
+                </button>
+                <button onclick="switchTab('estoque')" id="tab-estoque" class="px-6 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap">
+                    <i data-lucide="package" class="w-4 h-4"></i> Materiais/Stock
+                </button>
+            </div>
+        </nav>
+
+        <!-- Conteúdo Principal -->
+        <main class="max-w-6xl mx-auto p-4 md:p-6 w-full flex-1">
+            
+            <!-- Secção Agendamentos -->
+            <section id="section-agendamentos" class="fade-in space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-gray-800">Próximos Clientes</h2>
+                    <button onclick="showForm('agendamento')" class="bg-[#c41e3a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Novo
+                    </button>
+                </div>
+                <div id="agendamentos-list" class="grid gap-3"></div>
+            </section>
+
+            <!-- Secção Stock -->
+            <section id="section-estoque" class="fade-in hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-bold text-gray-800">Controlo de Materiais</h2>
+                    <button onclick="showForm('estoque')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2">
+                        <i data-lucide="package-plus" class="w-4 h-4"></i> Adicionar Item
+                    </button>
+                </div>
+                <div id="estoque-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+            </section>
+
+        </main>
+
+        <!-- Modal Único -->
+        <div id="modal-overlay" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden fade-in">
+                <div class="p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 id="modal-title" class="text-xl font-bold text-gray-800"></h3>
+                        <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600"><i data-lucide="x"></i></button>
+                    </div>
+                    <form id="modal-form" class="space-y-4" onsubmit="handleSubmit(event)"></form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast de Notificação -->
+        <div id="toast" class="fixed bottom-6 right-6 z-[100] transform transition-all duration-300 translate-y-20 opacity-0">
+            <div id="toast-content" class="px-6 py-3 rounded-xl shadow-2xl text-white font-medium flex items-center gap-3"></div>
+        </div>
+    </div>
+
+<script>
+    const STORAGE_KEY = 'gestao_salao_data_v1';
+    let allData = [];
+    let currentFormType = '';
+
+    // Simulador de atraso de rede (para manter a sensação de carregamento real)
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    // Função de Loading
+    function setLoading(isLoading, text = 'A carregar dados...') {
+        const loader = document.getElementById('loader');
+        const app = document.getElementById('app');
+        document.getElementById('loader-text').textContent = text;
+        
+        if(isLoading) {
+            loader.classList.remove('hidden');
+        } else {
+            loader.classList.add('hidden');
+            app.classList.remove('hidden');
+        }
+    }
+
+    // --- INICIALIZAÇÃO VIA LOCALSTORAGE ---
+    async function init() {
+        try {
+            setLoading(true, "A preparar o ambiente...");
+            await delay(600); // Simulando carregamento inicial
+            
+            const storedData = localStorage.getItem(STORAGE_KEY);
+            if (storedData) {
+                allData = JSON.parse(storedData);
+            } else {
+                // Dados de exemplo se for a primeira vez
+                allData = [
+                    { __backendId: 'demo1', type: 'agendamento', client_name: 'Maria Silva', phone: '912345678', service_name: 'Corte e Brushing', date: new Date().toISOString().split('T')[0], time: '14:30' },
+                    { __backendId: 'demo2', type: 'estoque', item_name: 'Champô Profissional 5L', category: 'Cabelo', quantity: 3, min_stock: 2 }
+                ];
+                saveData();
+            }
+            
+            updateRecordCount();
+            renderAll();
+        } catch (e) {
+            showToast("Erro ao iniciar o sistema", "error");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
+        updateRecordCount();
+    }
+
+    function updateRecordCount() {
+        document.getElementById('record-count').textContent = allData.length + ' registos';
+    }
+
+    // Arranca a aplicação ao carregar a página
+    window.onload = () => {
+        lucide.createIcons();
+        init();
+    };
+
+    // --- NAVEGAÇÃO ---
+    function switchTab(tab) {
+        const sections = ['agendamentos', 'estoque'];
+        sections.forEach(s => {
+            document.getElementById(`section-${s}`).classList.toggle('hidden', s !== tab);
+            const btn = document.getElementById(`tab-${s}`);
+            if(btn) {
+                btn.classList.toggle('tab-active', s === tab);
+                btn.classList.toggle('text-gray-500', s !== tab);
+            }
+        });
+        lucide.createIcons();
+    }
+
+    // --- RENDERIZAÇÃO ---
+    function renderAll() {
+        renderAgendamentos();
+        renderEstoque();
+    }
+
+    function renderAgendamentos() {
+        const items = allData.filter(d => d.type === 'agendamento').sort((a,b) => new Date(a.date) - new Date(b.date));
+        const list = document.getElementById('agendamentos-list');
+        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center">Nenhum agendamento encontrado.</p>' : items.map(item => `
+            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-[#c41e3a]/30 transition">
+                <div class="flex items-center gap-4">
+                    <div class="bg-gray-50 p-3 rounded-full text-[#c41e3a] group-hover:bg-[#c41e3a] group-hover:text-white transition">
+                        <i data-lucide="user" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800">${item.client_name}</h4>
+                        <p class="text-xs text-gray-500">${item.service_name} • ${item.time ? item.time.substring(0,5) : ''} • ${formatDate(item.date)}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="sendWhatsApp('${item.phone}', '${item.client_name}', '${item.time}')" class="p-2 text-green-500 hover:bg-green-50 rounded-full transition" title="Lembrar via WhatsApp">
+                        <i data-lucide="message-circle" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="deleteItem('${item.__backendId}')" class="p-2 text-gray-300 hover:text-red-500 rounded-full transition">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    function renderEstoque() {
+        const items = allData.filter(d => d.type === 'estoque');
+        const list = document.getElementById('estoque-list');
+        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center md:col-span-3">O stock está vazio.</p>' : items.map(item => `
+            <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+                <div>
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-gray-400">${item.category}</span>
+                        <span class="px-2 py-1 rounded text-xs font-bold ${Number(item.quantity) <= Number(item.min_stock) ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}">
+                            Stock: ${item.quantity}
+                        </span>
+                    </div>
+                    <h4 class="font-bold text-gray-800">${item.item_name}</h4>
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button onclick="updateQty('${item.__backendId}', 1)" class="flex-1 bg-gray-100 hover:bg-gray-200 py-1 rounded text-sm font-bold text-gray-600">+</button>
+                    <button onclick="updateQty('${item.__backendId}', -1)" class="flex-1 bg-gray-100 hover:bg-gray-200 py-1 rounded text-sm font-bold text-gray-600">-</button>
+                    <button onclick="deleteItem('${item.__backendId}')" class="p-1 text-red-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
+            </div>
+        `).join('');
+        lucide.createIcons();
+    }
+
+    // --- ACÇÕES DE DADOS (CRUD Local) ---
+    async function handleSubmit(e) {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        
+        // Gera um ID único simples
+        const newId = 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
+        
+        const data = { type: currentFormType, __backendId: newId };
+        fd.forEach((v, k) => data[k] = v);
+        
+        closeModal();
+        setLoading(true, "A guardar...");
+        await delay(400); // Sensação de processamento
+        
+        allData.push(data);
+        saveData();
+        renderAll();
+        showToast("Registo salvo com sucesso!", "success");
+        setLoading(false);
+    }
+
+    async function updateQty(id, change) {
+        const itemIndex = allData.findIndex(d => d.__backendId === id);
+        if (itemIndex === -1) return;
+        
+        let item = allData[itemIndex];
+        item.quantity = Math.max(0, (parseInt(item.quantity) || 0) + change);
+        
+        saveData();
+        renderEstoque(); 
+        showToast("Stock atualizado", "success");
+    }
+
+    async function deleteItem(id) {
+        if(confirm("Tem a certeza que deseja eliminar este registo?")) {
+            setLoading(true, "A eliminar...");
+            await delay(400);
+            
+            allData = allData.filter(d => d.__backendId !== id);
+            saveData();
+            renderAll();
+            
+            showToast("Eliminado com sucesso", "success");
+            setLoading(false);
+        }
+    }
+
+    // --- UTILITÁRIOS ---
+    function showForm(type) {
+        currentFormType = type;
+        const form = document.getElementById('modal-form');
+        const title = document.getElementById('modal-title');
+        
+        if(type === 'agendamento') {
+            title.textContent = 'Novo Agendamento';
+            form.innerHTML = `
+                <input name="client_name" placeholder="Nome do Cliente" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
+                <input name="phone" placeholder="Telemóvel (WhatsApp)" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
+                <input name="service_name" placeholder="Serviço (ex: Corte)" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="date" name="date" required class="p-3 border rounded-xl">
+                    <input type="time" name="time" required class="p-3 border rounded-xl">
+                </div>
+                <button type="submit" class="w-full bg-[#c41e3a] text-white p-3 rounded-xl font-bold shadow-lg">Confirmar</button>
+            `;
+        } else if (type === 'estoque') {
+            title.textContent = 'Novo Material';
+            form.innerHTML = `
+                <input name="item_name" placeholder="Nome do Produto" required class="w-full p-3 border rounded-xl">
+                <select name="category" class="w-full p-3 border rounded-xl">
+                    <option value="Cabelo">Cabelo</option>
+                    <option value="Unhas">Unhas</option>
+                    <option value="Limpeza">Limpeza</option>
+                    <option value="Outros">Outros</option>
+                </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <input type="number" name="quantity" placeholder="Qtd Inicial" required class="p-3 border rounded-xl">
+                    <input type="number" name="min_stock" placeholder="Qtd Mínima" required class="p-3 border rounded-xl">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Adicionar</button>
+            `;
+        }
+        document.getElementById('modal-overlay').classList.remove('hidden');
+    }
+
+    function closeModal() { 
+        document.getElementById('modal-overlay').classList.add('hidden'); 
+        document.getElementById('modal-form').reset();
+    }
+
+    function formatDate(d) {
+        if(!d) return '';
+        try {
+            const dateObj = new Date(d);
+            if (!isNaN(dateObj.getTime())) {
+               return `${dateObj.getDate().toString().padStart(2, '0')}/${(dateObj.getMonth() + 1).toString().padStart(2, '0')}`;
+            }
+            const [y, m, day] = d.split('-');
+            return `${day}/${m}`;
+        } catch { return d; }
+    }
+
+    function sendWhatsApp(phone, name, time) {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const msg = encodeURIComponent(`Olá ${name}! Confirmamos a sua marcação hoje às ${time ? time.substring(0,5) : ''}. Ficamos à espera!`);
+        window.open(`https://wa.me/351${cleanPhone}?text=${msg}`, '_blank'); // Prefixo 351 (Portugal), adapte se necessário para o Brasil (55).
+    }
+
+    function showToast(msg, type) {
+        const toast = document.getElementById('toast');
+        const content = document.getElementById('toast-content');
+        content.className = `px-6 py-3 rounded-xl shadow-2xl text-white font-medium flex items-center gap-3 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
+        content.innerHTML = `<i data-lucide="${type === 'success' ? 'check' : 'alert-circle'}" class="w-5 h-5"></i> ${msg}`;
+        toast.classList.remove('translate-y-20', 'opacity-0');
+        lucide.createIcons();
+        setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+    }
+</script>
+</body>
+</html>
