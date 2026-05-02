@@ -57,75 +57,36 @@
         </div>
     </div>
 
-    <!-- ================= VIEW DO CLIENTE (PÚBLICA) ================= -->
-    <div id="client-view" class="h-full flex flex-col hidden fade-in overflow-y-auto pb-10">
+    <!-- ================= VIEW DO CLIENTE (PÚBLICA - GOOGLE CALENDAR) ================= -->
+    <div id="client-view" class="h-full flex flex-col hidden fade-in overflow-y-auto">
         <header class="bg-white text-center py-6 shadow-sm border-b border-gray-100 sticky top-0 z-10">
             <h1 class="text-2xl font-bold text-[#c41e3a] tracking-tight">O Meu Salão Pro</h1>
             <p class="text-sm text-gray-500 mt-1">Agendamento Online</p>
         </header>
 
-        <section class="p-4 md:p-6 flex-1">
-            <div class="bg-white p-6 md:p-8 rounded-2xl shadow-lg shadow-gray-200/50 border border-gray-100 max-w-xl mx-auto mt-2">
-                <div class="text-center mb-8">
-                    <div class="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <i data-lucide="calendar-check" class="w-8 h-8"></i>
-                    </div>
+        <section class="p-0 md:p-6 flex-1 flex flex-col">
+            <div class="bg-white p-0 md:p-4 rounded-none md:rounded-2xl shadow-none md:shadow-lg border-0 md:border border-gray-100 w-full max-w-4xl mx-auto flex-1 flex flex-col">
+                <div class="text-center p-6 md:p-0 mb-4 hidden md:block">
                     <h2 class="text-2xl font-bold text-gray-800">Reserve o seu horário</h2>
-                    <p class="text-gray-500 text-sm mt-2">Escolha o serviço e o melhor momento para nos visitar. É rápido e fácil!</p>
+                    <p class="text-gray-500 text-sm mt-2">Escolha o serviço e o melhor momento diretamente na nossa agenda oficial.</p>
                 </div>
 
-                <div id="client-success-msg" class="hidden bg-green-50 border border-green-200 text-green-800 p-6 rounded-xl text-center mb-6">
-                    <i data-lucide="check-circle" class="w-12 h-12 mx-auto mb-3 text-green-500"></i>
-                    <h3 class="text-lg font-bold">Agendamento Confirmado!</h3>
-                    <p class="text-sm mt-2">O seu horário foi registado com sucesso. Estamos à sua espera!</p>
-                    <button type="button" onclick="resetClientForm()" class="mt-4 text-[#c41e3a] font-bold text-sm hover:underline">Fazer nova marcação</button>
+                <!-- Integração Google Calendar Iframe -->
+                <div class="w-full flex-1 min-h-[600px] md:min-h-[700px] md:rounded-xl overflow-hidden bg-gray-50 md:border border-gray-200">
+                    <!-- COLE AQUI O SEU LINK DO GOOGLE CALENDAR -->
+                    <!-- O parâmetro ?gv=true remove a interface desnecessária do calendário -->
+                    <iframe 
+                        src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ0AAAA_EXEMPLO_COLE_O_SEU_AQUI_AAAAA?gv=true" 
+                        style="border: 0" 
+                        width="100%" 
+                        height="100%" 
+                        frameborder="0">
+                    </iframe>
                 </div>
-
-                <form id="online-booking-form" onsubmit="handleOnlineBooking(event)" class="space-y-6">
-                    <!-- Serviço -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">1. Qual serviço deseja?</label>
-                        <select name="service_name" required class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 focus:border-[#c41e3a] bg-gray-50 hover:bg-white transition">
-                            <option value="">Selecione uma opção</option>
-                            <option value="Corte de Cabelo">Corte de Cabelo</option>
-                            <option value="Coloração/Madeixas">Coloração / Madeixas</option>
-                            <option value="Brushing">Brushing / Secagem</option>
-                            <option value="Manicure">Manicure</option>
-                            <option value="Pedicure">Pedicure</option>
-                            <option value="Massagem Relaxante">Massagem Relaxante</option>
-                        </select>
-                    </div>
-
-                    <!-- Data -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">2. Escolha a data</label>
-                        <input type="date" id="online-date" name="date" required onchange="renderAvailableTimes()" class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 focus:border-[#c41e3a] bg-gray-50 hover:bg-white transition">
-                    </div>
-
-                    <!-- Horários Disponíveis -->
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">3. Horários Disponíveis</label>
-                        <div id="time-slots" class="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                            <p class="text-sm text-gray-400 col-span-full bg-gray-50 p-4 rounded-xl text-center border border-dashed">
-                                Selecione uma data acima para ver os horários.
-                            </p>
-                        </div>
-                        <input type="hidden" id="online-time" name="time" required>
-                    </div>
-
-                    <!-- Dados Pessoais -->
-                    <div class="pt-6 border-t border-gray-100">
-                        <label class="block text-sm font-bold text-gray-700 mb-4">4. Os seus dados</label>
-                        <div class="space-y-4">
-                            <input name="client_name" placeholder="Nome Completo" required class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 bg-gray-50 hover:bg-white transition">
-                            <input name="phone" placeholder="Telemóvel (WhatsApp)" required class="w-full p-3.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50 bg-gray-50 hover:bg-white transition">
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-submit-online" disabled class="w-full bg-[#c41e3a] text-white p-4 rounded-xl font-bold text-lg shadow-lg shadow-[#c41e3a]/30 disabled:opacity-50 disabled:shadow-none disabled:cursor-not-allowed hover:bg-[#a01a30] hover:-translate-y-0.5 transition-all duration-200 mt-6">
-                        Confirmar Agendamento
-                    </button>
-                </form>
+                
+                <div class="p-6 text-center text-xs text-gray-400">
+                    <p><i data-lucide="shield-check" class="w-4 h-4 inline-block mr-1"></i> Agendamento seguro via Google Calendar</p>
+                </div>
             </div>
         </section>
     </div>
@@ -159,7 +120,7 @@
             <div class="max-w-6xl mx-auto flex overflow-x-auto no-scrollbar justify-between items-center pr-4">
                 <div class="flex">
                     <button onclick="switchTab('agendamentos')" id="tab-agendamentos" class="px-6 py-4 text-sm font-medium tab-active flex items-center gap-2 whitespace-nowrap">
-                        <i data-lucide="calendar" class="w-4 h-4"></i> Agendamentos
+                        <i data-lucide="calendar" class="w-4 h-4"></i> Agendamentos Locais
                     </button>
                     <button onclick="switchTab('estoque')" id="tab-estoque" class="px-6 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap">
                         <i data-lucide="package" class="w-4 h-4"></i> Materiais/Stock
@@ -177,10 +138,15 @@
         <main class="max-w-6xl mx-auto p-4 md:p-6 w-full flex-1">
             <!-- Secção Agendamentos -->
             <section id="section-agendamentos" class="fade-in space-y-4">
+                <div class="bg-blue-50 border border-blue-200 text-blue-800 p-4 rounded-xl text-sm flex gap-3 items-start mb-6">
+                    <i data-lucide="info" class="w-5 h-5 flex-shrink-0 mt-0.5"></i>
+                    <p>Os agendamentos online feitos pelos clientes agora entram diretamente no seu <strong>Google Calendar</strong>. Utilize esta aba apenas para registos manuais (clientes sem telemóvel ou marcações na loja).</p>
+                </div>
+
                 <div class="flex justify-between items-center">
-                    <h2 class="text-lg font-bold text-gray-800">Agenda do Salão</h2>
+                    <h2 class="text-lg font-bold text-gray-800">Agendamentos Manuais</h2>
                     <button onclick="showForm('agendamento')" class="bg-[#c41e3a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2">
-                        <i data-lucide="plus" class="w-4 h-4"></i> Novo Interno
+                        <i data-lucide="plus" class="w-4 h-4"></i> Novo Manual
                     </button>
                 </div>
                 <div id="agendamentos-list" class="grid gap-3"></div>
@@ -222,9 +188,6 @@
     let allData = [];
     let currentFormType = '';
 
-    // Horários de funcionamento padrão do salão
-    const WORKING_HOURS = ['09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
-
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
     function setLoading(isLoading, text = 'A carregar...') {
@@ -236,7 +199,9 @@
 
     // --- ROTEAMENTO E INICIALIZAÇÃO ---
     async function init() {
-        setLoading(true, "A verificar acesso...");
+        setLoading(true, "<!-- Google Calendar Appointment Scheduling begin -->
+<iframe src="https://calendar.google.com/calendar/appointments/schedules/AcZssZ1pOyscLQERWkrwmf5zwjlPGksT3fmbXItuvRhstGVBndHAiB0eUdY-FlRpUMXn0g3z5mFF3Pye?gv=true" style="border: 0" width="100%" height="600" frameborder="0"></iframe>
+<!-- end Google Calendar Appointment Scheduling -->");
         await delay(500); 
         
         // Carrega dados da base de dados local
@@ -253,10 +218,8 @@
         const isClientView = urlParams.get('view') === 'cliente';
 
         if (isClientView) {
-            // Rota Pública (Cliente)
+            // Rota Pública (Cliente com Iframe do Google Calendar)
             document.getElementById('client-view').classList.remove('hidden');
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('online-date').setAttribute('min', today);
         } else {
             // Rota Administrativa (Gerente)
             const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
@@ -305,10 +268,8 @@
     }
 
     function copyClientLink() {
-        // Gera o link da área do cliente dinamicamente
         const clientLink = window.location.origin + window.location.pathname + '?view=cliente';
         
-        // Método seguro para copiar que funciona até em iframes
         const tempInput = document.createElement("input");
         tempInput.value = clientLink;
         document.body.appendChild(tempInput);
@@ -328,92 +289,6 @@
     function updateRecordCount() {
         const countEl = document.getElementById('record-count');
         if (countEl) countEl.textContent = allData.length + ' registos';
-    }
-
-    // --- ÁREA DO CLIENTE (AGENDAMENTO ONLINE) ---
-    function renderAvailableTimes() {
-        const dateInput = document.getElementById('online-date').value;
-        const timeSlotsContainer = document.getElementById('time-slots');
-        const timeInput = document.getElementById('online-time');
-        const submitBtn = document.getElementById('btn-submit-online');
-
-        timeInput.value = '';
-        submitBtn.disabled = true;
-
-        if (!dateInput) {
-            timeSlotsContainer.innerHTML = '<p class="text-sm text-gray-400 col-span-full bg-gray-50 p-4 rounded-xl text-center border border-dashed">Selecione uma data acima para ver os horários.</p>';
-            return;
-        }
-
-        // Lê os dados mais atualizados do localStorage para evitar choques
-        const currentData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        const bookedTimes = currentData
-            .filter(d => d.type === 'agendamento' && d.date === dateInput)
-            .map(d => d.time);
-
-        const availableTimes = WORKING_HOURS.filter(t => !bookedTimes.includes(t));
-
-        if (availableTimes.length === 0) {
-            timeSlotsContainer.innerHTML = `
-                <div class="col-span-full bg-red-50 text-red-600 p-4 rounded-xl text-center border border-red-100">
-                    <i data-lucide="calendar-x" class="w-6 h-6 mx-auto mb-1"></i>
-                    <p class="text-sm font-bold">Data Esgotada</p>
-                    <p class="text-xs mt-1">Por favor, escolha outro dia.</p>
-                </div>`;
-            lucide.createIcons();
-            return;
-        }
-
-        timeSlotsContainer.innerHTML = availableTimes.map(time => `
-            <button type="button" onclick="selectTimeSlot('${time}', this)" class="time-slot-btn py-3 px-2 border border-gray-200 bg-white rounded-xl text-sm font-bold text-gray-700 hover:border-[#c41e3a] hover:text-[#c41e3a] hover:bg-red-50 transition-all duration-200">
-                ${time}
-            </button>
-        `).join('');
-    }
-
-    function selectTimeSlot(time, btnElement) {
-        document.getElementById('online-time').value = time;
-        document.getElementById('btn-submit-online').disabled = false;
-
-        document.querySelectorAll('.time-slot-btn').forEach(btn => {
-            btn.classList.remove('bg-[#c41e3a]', 'text-white', 'border-[#c41e3a]', 'ring-2', 'ring-red-200');
-            btn.classList.add('bg-white', 'text-gray-700', 'border-gray-200', 'hover:border-[#c41e3a]', 'hover:text-[#c41e3a]', 'hover:bg-red-50');
-        });
-
-        btnElement.classList.remove('bg-white', 'text-gray-700', 'border-gray-200', 'hover:border-[#c41e3a]', 'hover:text-[#c41e3a]', 'hover:bg-red-50');
-        btnElement.classList.add('bg-[#c41e3a]', 'text-white', 'border-[#c41e3a]', 'ring-2', 'ring-red-200', 'transform', 'scale-105');
-    }
-
-    async function handleOnlineBooking(e) {
-        e.preventDefault();
-        const fd = new FormData(e.target);
-        const newId = 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
-        
-        const data = { type: 'agendamento', __backendId: newId, origem: 'Online' };
-        fd.forEach((v, k) => data[k] = v);
-        
-        setLoading(true, "A confirmar o seu horário...");
-        await delay(1200); 
-        
-        // Garante que pega os dados mais recentes antes de gravar
-        const currentData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        currentData.push(data);
-        allData = currentData;
-        saveData();
-        
-        document.getElementById('online-booking-form').classList.add('hidden');
-        document.getElementById('client-success-msg').classList.remove('hidden');
-        setLoading(false);
-    }
-
-    function resetClientForm() {
-        document.getElementById('online-booking-form').reset();
-        document.getElementById('time-slots').innerHTML = '<p class="text-sm text-gray-400 col-span-full bg-gray-50 p-4 rounded-xl text-center border border-dashed">Selecione uma data acima para ver os horários.</p>';
-        document.getElementById('btn-submit-online').disabled = true;
-        document.getElementById('online-time').value = '';
-        
-        document.getElementById('client-success-msg').classList.add('hidden');
-        document.getElementById('online-booking-form').classList.remove('hidden');
     }
 
     // --- ÁREA ADMINISTRATIVA ---
@@ -439,9 +314,9 @@
     function renderAgendamentos() {
         const items = allData.filter(d => d.type === 'agendamento').sort((a,b) => new Date(a.date) - new Date(b.date) || a.time.localeCompare(b.time));
         const list = document.getElementById('agendamentos-list');
-        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center border border-dashed rounded-xl">Agenda livre. Nenhum agendamento encontrado.</p>' : items.map(item => `
+        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center border border-dashed rounded-xl">Nenhum agendamento manual registado.</p>' : items.map(item => `
             <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex items-center justify-between group hover:border-[#c41e3a]/30 transition relative overflow-hidden">
-                ${item.origem === 'Online' ? '<div class="absolute top-0 right-0 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">Online</div>' : ''}
+                <div class="absolute top-0 right-0 bg-gray-200 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-bl-lg">Manual</div>
                 <div class="flex items-center gap-4">
                     <div class="bg-gray-50 p-3 rounded-full text-[#c41e3a] group-hover:bg-[#c41e3a] group-hover:text-white transition">
                         <i data-lucide="user" class="w-5 h-5"></i>
@@ -493,7 +368,7 @@
         const fd = new FormData(e.target);
         const newId = 'id_' + Date.now().toString(36) + Math.random().toString(36).substr(2);
         
-        const data = { type: currentFormType, __backendId: newId, origem: 'Interno' };
+        const data = { type: currentFormType, __backendId: newId, origem: 'Manual' };
         fd.forEach((v, k) => data[k] = v);
         
         closeModal();
@@ -538,7 +413,7 @@
         const title = document.getElementById('modal-title');
         
         if(type === 'agendamento') {
-            title.textContent = 'Novo Agendamento (Interno)';
+            title.textContent = 'Novo Agendamento (Manual)';
             form.innerHTML = `
                 <input name="client_name" placeholder="Nome do Cliente" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
                 <input name="phone" placeholder="Telemóvel (WhatsApp)" required class="w-full p-3 border rounded-xl focus:ring-2 focus:ring-[#c41e3a]">
