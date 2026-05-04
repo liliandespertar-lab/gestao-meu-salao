@@ -4,9 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestão Pro - Salão & Estética</title>
+    
+    <!-- Bibliotecas de UI -->
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Bibliotecas do Firebase (Compatíveis para uso num ficheiro único) -->
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
+
     <style>
         * { font-family: 'DM Sans', sans-serif; }
         .tab-active { border-bottom: 3px solid #c41e3a; color: #c41e3a; }
@@ -29,7 +36,7 @@
     <!-- Ecrã de Carregamento -->
     <div id="loader" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white">
         <div class="spinner mb-4"></div>
-        <p class="font-medium" id="loader-text">A carregar sistema...</p>
+        <p class="font-medium" id="loader-text">A ligar à base de dados...</p>
     </div>
 
     <!-- ================= VIEW DE LOGIN (ADMIN) ================= -->
@@ -176,7 +183,7 @@
             <!-- ABA: AGENDAMENTOS -->
             <section id="section-agendamentos" class="fade-in space-y-4">
                 
-                <!-- NOVO: Banner de Link em Destaque -->
+                <!-- Banner de Link em Destaque -->
                 <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2 shadow-sm">
                     <div>
                         <h3 class="font-bold text-indigo-900 flex items-center gap-2"><i data-lucide="globe" class="w-4 h-4"></i> Agendamento Online Ativo!</h3>
@@ -251,63 +258,88 @@
     </div>
 
 <script>
-    // Alterámos a chave de armazenamento para garantir que começa limpo e sem conflitos.
-    const STORAGE_KEY = 'gestao_salao_data_v4';
+    // =========================================================================
+    // CONFIGURAÇÃO DO FIREBASE (MUITO IMPORTANTE)
+    // Substitua os valores abaixo pelos dados do seu projeto Firebase!
+    // =========================================================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyB6Q-VGkhDw-KQkuRxFiRzjuuqt_kad2A0",
+      authDomain: "gestao-salao-app-84325.firebaseapp.com",
+      projectId: "gestao-salao-app-84325",
+      storageBucket: "gestao-salao-app-84325.firebasestorage.app",
+      messagingSenderId: "447254294920",
+      appId: "1:447254294920:web:b503ef182a8fa9f5c68a3d"
+    };
+
+    // Inicialização do Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const COLLECTION_NAME = "salao_data";
+
     let allData = [];
     let currentFormType = '';
     let selectedSlot = null;
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-    function setLoading(isLoading, text = 'A carregar...') {
+    function setLoading(isLoading, text = 'A processar...') {
         const loader = document.getElementById('loader');
         document.getElementById('loader-text').textContent = text;
         if(isLoading) loader.classList.remove('hidden');
         else loader.classList.add('hidden');
     }
 
-    // --- ROTEAMENTO E INICIALIZAÇÃO ---
+    // --- INICIALIZAÇÃO E SINCRONIZAÇÃO EM TEMPO REAL ---
     async function init() {
-        setLoading(true, "A preparar sistema...");
+        setLoading(true, "A ligar à base de dados (Firebase)...");
         
         try {
-            const storedData = localStorage.getItem(STORAGE_KEY);
-            if (storedData) {
-                allData = JSON.parse(storedData);
-                if (!Array.isArray(allData)) allData = []; // Proteção contra dados corrompidos
-            } else {
-                // Dados Iniciais de Demonstração
-                allData = [
-                    { __backendId: 'srv1', type: 'servico', name: 'Corte de Cabelo', duration: 30, price: 15 },
-                    { __backendId: 'srv2', type: 'servico', name: 'Coloração', duration: 90, price: 45 },
-                    { __backendId: 'srv3', type: 'servico', name: 'Manicure', duration: 45, price: 12 },
-                    { __backendId: 'age1', type: 'agendamento', client_name: 'Maria Silva', phone: '912345678', service_name: 'Corte de Cabelo', date: new Date().toISOString().split('T')[0], time: '10:00', origem: 'Online' }
-                ];
-                saveData();
-            }
+            // Este bloco de código vai "ouvir" a sua base de dados do Firebase.
+            // Sempre que houver uma alteração (alguém marcar online, ou você alterar o stock),
+            // a interface vai atualizar-se sozinha!
+            db.collection(COLLECTION_NAME).onSnapshot((snapshot) => {
+                allData = [];
+                snapshot.forEach((doc) => {
+                    // Guarda os dados juntamente com o ID real gerado pelo Firebase
+                    allData.push({ ...doc.data(), __backendId: doc.id });
+                });
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const isClientView = urlParams.get('view') === 'cliente';
+                // Descobre onde estamos (Visão Cliente ou Visão Admin)
+                const urlParams = new URLSearchParams(window.location.search);
+                const isClientView = urlParams.get('view') === 'cliente';
 
-            if (isClientView) {
-                document.getElementById('client-view').classList.remove('hidden');
-                setupClientView();
-            } else {
-                const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
-                if (isLoggedIn) {
-                    document.getElementById('admin-view').classList.remove('hidden');
-                    renderAllAdmin();
+                if (isClientView) {
+                    document.getElementById('client-view').classList.remove('hidden');
+                    setupClientView();
+                    // Se o cliente tiver um serviço selecionado, atualiza os horários para refletir quem acabou de marcar
+                    if (document.getElementById('public-service-select').value) {
+                        updatePublicSlots();
+                    }
                 } else {
-                    document.getElementById('login-view').classList.remove('hidden');
+                    const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
+                    if (isLoggedIn) {
+                        document.getElementById('admin-view').classList.remove('hidden');
+                        renderAllAdmin();
+                    } else {
+                        document.getElementById('login-view').classList.remove('hidden');
+                    }
                 }
-            }
+                
+                const countEl = document.getElementById('record-count');
+                if (countEl) countEl.textContent = allData.length + ' registos';
+                
+                setLoading(false);
+            }, (error) => {
+                console.error("Erro ao ler do Firebase (verifique a Config ou Permissões):", error);
+                setLoading(false);
+                showToast("Erro na ligação ao Firebase. Verifique a consola.", "error");
+            });
+
         } catch (e) {
-            console.error("Erro na inicialização:", e);
-            allData = []; // Reset em caso de erro fatal no parsing
+            console.error("Erro crítico na inicialização:", e);
+            setLoading(false);
         }
         
-        await delay(500);
-        setLoading(false);
         try { lucide.createIcons(); } catch(e) {}
     }
 
@@ -318,14 +350,20 @@
         const services = allData.filter(d => d.type === 'servico');
         const select = document.getElementById('public-service-select');
         
+        // Guarda o valor selecionado atualmente para não o perder quando atualiza a lista
+        const currentValue = select.value;
+
         if (services.length === 0) {
             select.innerHTML = '<option value="">Nenhum serviço disponível no momento.</option>';
             select.disabled = true;
             return;
         }
 
+        select.disabled = false;
         select.innerHTML = '<option value="">-- Escolha um serviço --</option>' + 
             services.map(s => `<option value="${s.__backendId}">${s.name} (${s.duration || 30} min) - ${s.price ? 'R$ '+Number(s.price).toFixed(2) : ''}</option>`).join('');
+            
+        if (currentValue) select.value = currentValue;
     }
 
     function updatePublicAvailability() {
@@ -363,14 +401,12 @@
         const service = allData.find(d => d.__backendId === serviceId);
         if (!service) return;
 
-        // Procura agendamentos existentes para esta data
         const bookings = allData.filter(d => d.type === 'agendamento' && d.date === selectedDate);
         const bookedTimes = new Set(bookings.map(b => b.time));
 
         const slots = [];
-        const duration = parseInt(service.duration) || 30; // Proteção contra NaN
+        const duration = parseInt(service.duration) || 30;
         
-        // Lógica de geração de horários (das 09:00 às 18:00 baseada na duração do serviço)
         for (let h = 9; h < 18; h++) {
             for (let m = 0; m < 60; m += duration) {
                 const time = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
@@ -392,7 +428,6 @@
         selectedSlot = time;
         document.getElementById('public-submit-btn').disabled = false;
         
-        // Atualiza a interface visualmente
         const buttons = document.getElementById('public-slots').querySelectorAll('button');
         buttons.forEach(btn => {
             if (!btn.disabled) {
@@ -412,35 +447,30 @@
         const serviceId = document.getElementById('public-service-select').value;
         const service = allData.find(d => d.__backendId === serviceId);
         
-        const newId = 'id_' + Date.now().toString(36);
         const data = {
             type: 'agendamento',
-            __backendId: newId,
             origem: 'Online',
             client_name: document.getElementById('public-name').value,
             phone: document.getElementById('public-phone').value,
             email: document.getElementById('public-email').value,
             service_name: service ? service.name : 'Serviço Padrão',
             date: document.getElementById('public-date-select').value,
-            time: selectedSlot
+            time: selectedSlot,
+            criado_em: firebase.firestore.FieldValue.serverTimestamp() // Registo de segurança
         };
 
-        setLoading(true, "A confirmar...");
-        await delay(1000);
-        
-        // Garante leitura de dados frescos
+        setLoading(true, "A confirmar na cloud...");
         try {
-            const currentData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-            currentData.push(data);
-            allData = currentData;
-            saveData();
+            await db.collection(COLLECTION_NAME).add(data);
+            
+            document.getElementById('public-booking-container').classList.add('hidden');
+            document.getElementById('client-success-msg').classList.remove('hidden');
         } catch (err) {
-            console.error(err);
+            console.error("Erro ao gravar:", err);
+            showToast("Erro ao agendar. Tente novamente.", "error");
+        } finally {
+            setLoading(false);
         }
-        
-        document.getElementById('public-booking-container').classList.add('hidden');
-        document.getElementById('client-success-msg').classList.remove('hidden');
-        setLoading(false);
     }
 
     function resetClientForm() {
@@ -489,16 +519,6 @@
         showToast("Link copiado! Cole no WhatsApp.", "success");
     }
 
-    function saveData() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
-            const countEl = document.getElementById('record-count');
-            if (countEl) countEl.textContent = allData.length + ' registos';
-        } catch (e) {
-            console.error("Erro ao gravar dados localmente", e);
-        }
-    }
-
     function switchTabAdmin(tab) {
         const sections = ['agendamentos', 'servicos', 'estoque', 'financeiro'];
         sections.forEach(s => {
@@ -518,8 +538,6 @@
         renderServicos();
         renderEstoque();
         renderFinanceiro();
-        const countEl = document.getElementById('record-count');
-        if (countEl) countEl.textContent = allData.length + ' registos';
     }
 
     function renderAgendamentos() {
@@ -637,47 +655,62 @@
     async function toggleContaStatus(id) {
         const item = allData.find(d => d.__backendId === id);
         if (item) {
-            item.status_conta = item.status_conta === 'pago' ? 'pendente' : 'pago';
-            saveData();
-            renderFinanceiro();
-            showToast("Status atualizado", "success");
+            const newStatus = item.status_conta === 'pago' ? 'pendente' : 'pago';
+            try {
+                await db.collection(COLLECTION_NAME).doc(id).update({ status_conta: newStatus });
+                showToast("Status atualizado", "success");
+            } catch(e) {
+                showToast("Erro ao atualizar", "error");
+            }
         }
     }
 
     async function handleAdminSubmit(e) {
         e.preventDefault();
         const fd = new FormData(e.target);
-        const newId = 'id_' + Date.now().toString(36);
         
-        const data = { type: currentFormType, __backendId: newId, origem: 'Manual Admin' };
+        const data = { type: currentFormType, origem: 'Manual Admin' };
         fd.forEach((v, k) => data[k] = v);
         
         closeModal();
-        setLoading(true, "A guardar...");
-        await delay(400); 
+        setLoading(true, "A gravar na cloud...");
         
-        allData.push(data);
-        saveData();
-        renderAllAdmin();
-        showToast("Registo salvo!", "success");
-        setLoading(false);
+        try {
+            await db.collection(COLLECTION_NAME).add(data);
+            showToast("Registo salvo!", "success");
+        } catch(err) {
+            console.error(err);
+            showToast("Erro ao guardar", "error");
+        } finally {
+            setLoading(false);
+        }
     }
 
     async function updateQty(id, change) {
         const item = allData.find(d => d.__backendId === id);
         if (item) {
-            item.quantity = Math.max(0, (parseInt(item.quantity) || 0) + change);
-            saveData();
-            renderEstoque(); 
+            const newQty = Math.max(0, (parseInt(item.quantity) || 0) + change);
+            try {
+                await db.collection(COLLECTION_NAME).doc(id).update({ quantity: newQty });
+            } catch(e) {
+                console.error("Erro ao atualizar stock:", e);
+                showToast("Erro de ligação", "error");
+            }
         }
     }
 
     async function deleteItem(id) {
-        if(confirm("Deseja eliminar este registo?")) {
-            allData = allData.filter(d => d.__backendId !== id);
-            saveData();
-            renderAllAdmin();
-            showToast("Eliminado", "success");
+        if(confirm("Deseja eliminar este registo permanentemente da Cloud?")) {
+            setLoading(true, "A apagar...");
+            try {
+                await db.collection(COLLECTION_NAME).doc(id).delete();
+                showToast("Eliminado com sucesso", "success");
+            } catch(e) {
+                console.error("Erro ao apagar", e);
+                showToast("Erro ao apagar", "error");
+            } finally {
+                setLoading(false);
+            }
         }
     }
 
@@ -697,7 +730,7 @@
                     <input type="date" name="date" required class="p-3 border rounded-xl focus:ring-[#c41e3a]">
                     <input type="time" name="time" required class="p-3 border rounded-xl focus:ring-[#c41e3a]">
                 </div>
-                <button type="submit" class="w-full bg-[#c41e3a] text-white p-3 rounded-xl font-bold">Salvar</button>`;
+                <button type="submit" class="w-full bg-[#c41e3a] text-white p-3 rounded-xl font-bold">Salvar na Cloud</button>`;
         } else if (type === 'servico') {
             title.textContent = 'Novo Serviço (Catálogo)';
             form.innerHTML = `
@@ -725,7 +758,7 @@
                     <input type="number" name="quantity" placeholder="Qtd Inicial" required class="p-3 border rounded-xl focus:ring-[#c41e3a]">
                     <input type="number" name="min_stock" placeholder="Qtd Mínima" required class="p-3 border rounded-xl focus:ring-[#c41e3a]">
                 </div>
-                <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Adicionar</button>`;
+                <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Adicionar na Cloud</button>`;
         } else if (type === 'conta') {
             title.textContent = 'Nova Conta';
             form.innerHTML = `
@@ -767,7 +800,7 @@
     function sendWhatsApp(phone, name, time) {
         const cleanPhone = (phone || '').replace(/\D/g, '');
         const msg = encodeURIComponent(`Olá ${name || ''}! Confirmamos a sua marcação hoje às ${time || ''}. Ficamos à espera!`);
-        window.open(`https://wa.me/55${cleanPhone}?text=${msg}`, '_blank'); // Prefixo 55 p/ Brasil
+        window.open(`https://wa.me/55${cleanPhone}?text=${msg}`, '_blank');
     }
 
     function showToast(msg, type) {
