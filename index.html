@@ -746,7 +746,6 @@
         sections.forEach(s => {
             const sectionEl = document.getElementById(`section-${s}`);
             if(sectionEl) {
-                // CORREÇÃO: Aplicar flex apenas se for a aba IA
                 if(s === tab) {
                     sectionEl.classList.remove('hidden');
                     if(s === 'ia') {
@@ -754,13 +753,12 @@
                     }
                 } else {
                     sectionEl.classList.add('hidden');
-                    sectionEl.classList.remove('flex'); // Remove flex quando não está visível
+                    sectionEl.classList.remove('flex');
                 }
             }
 
             const btn = document.getElementById(`tab-${s}`);
             if(btn) {
-                // Remove estilos ativos
                 btn.classList.remove('border-b-2', 'border-[#c41e3a]', 'border-purple-600', 'text-[#c41e3a]', 'text-purple-800');
                 if(s === 'ia') {
                     btn.classList.add('text-purple-600');
@@ -790,15 +788,22 @@
     }
 
     // =========================================================================
-    // LÓGICA DO ASSISTENTE DE IA (GEMINI API)
+    // LÓGICA DO ASSISTENTE DE IA (GEMINI API) - AGORA COM ESPAÇO PARA A SUA CHAVE
     // =========================================================================
-    const apiKey = ""; // A chave é injetada automaticamente pelo ambiente
+    
+    // COLE A SUA CHAVE DA API AQUI DENTRO DAS ASPAS:
+    const apiKey = "AIzaSyDcdRPYCYYmF0wYknPccfukV5u-xkr0FSM"; 
     
     window.sendToIA = async function() {
         const inputEl = document.getElementById('ia-input');
         const userText = inputEl.value.trim();
         if(!userText) return;
         
+        if (apiKey === "COLE_SUA_CHAVE_GEMINI_AQUI" || !apiKey) {
+            appendChatMessage('ai', '<span class="text-red-500 font-bold">Erro: Chave da API ausente!</span><br>Precisa de gerar uma chave gratuita no <b>Google AI Studio</b> e colá-la na variável <code>apiKey</code> no código-fonte para funcionar fora deste ambiente de testes.');
+            return;
+        }
+
         appendChatMessage('user', userText);
         inputEl.value = '';
         
@@ -851,7 +856,7 @@
             appendChatMessage('ai', aiText);
         } catch(e) {
             console.error(e);
-            appendChatMessage('ai', '<span class="text-red-500">Erro de conexão com o servidor de Inteligência Artificial. Verifique a internet ou tente mais tarde.</span>');
+            appendChatMessage('ai', '<span class="text-red-500">Erro de conexão com o servidor de Inteligência Artificial. Verifique a sua chave API ou a sua internet.</span>');
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Enviar';
