@@ -13,7 +13,6 @@
     <!-- Bibliotecas do Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
-    <!-- Nova Biblioteca para Upload de Arquivos -->
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-storage-compat.js"></script>
 
     <style>
@@ -25,11 +24,6 @@
         
         .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        
-        .slot-available { background-color: #ffffff; border: 2px solid #e5e7eb; cursor: pointer; color: #374151; transition: all 0.2s; }
-        .slot-available:hover { border-color: #f4a3ac; background-color: #fff1f2; color: #c41e3a; }
-        .slot-booked { background-color: #f3f4f6; border: 2px solid #e5e7eb; cursor: not-allowed; opacity: 0.5; text-decoration: line-through; }
-        .slot-selected { background-color: #c41e3a; border: 2px solid #c41e3a; color: #ffffff; transform: scale(1.05); }
     </style>
 </head>
 <body class="h-full bg-[#f8fafc]">
@@ -80,41 +74,37 @@
             </div>
 
             <div id="public-booking-container">
-                <p class="text-gray-500 text-sm mb-6 text-center">Siga os passos abaixo para garantir o seu horário.</p>
+                <p class="text-gray-500 text-sm mb-6 text-center">Agende um ou mais serviços para o seu dia de beleza.</p>
 
-                <!-- 1 e 2. Seleção de Serviço e Profissional -->
-                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-6 space-y-4">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">1. Selecione o serviço</label>
-                        <select id="public-service-select" onchange="updatePublicAvailability()" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
-                            <option value="">-- A carregar serviços... --</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-2">2. Escolha o Profissional</label>
-                        <select id="public-prof-select" onchange="updatePublicAvailability()" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
-                            <option value="">-- A carregar profissionais... --</option>
-                        </select>
-                    </div>
+                <!-- 1. Data -->
+                <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-4">
+                    <label class="block text-sm font-bold text-gray-700 mb-3">1. Selecione a data desejada</label>
+                    <input id="public-date-select" type="date" onchange="handleClientDateChange()" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
                 </div>
 
-                <!-- 3. Seleção de Data e Hora -->
-                <div id="public-availability" class="hidden fade-in space-y-6">
-                    <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                        <label class="block text-sm font-bold text-gray-700 mb-3">3. Selecione a data</label>
-                        <input id="public-date-select" type="date" onchange="updatePublicSlots()" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
-                    </div>
+                <!-- Carrinho e Adição (Hidden até ter data) -->
+                <div id="public-services-section" class="hidden space-y-4">
+                    
+                    <!-- Serviços já adicionados no carrinho -->
+                    <div id="public-cart-list" class="space-y-2 mb-4"></div>
 
-                    <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                        <label class="block text-sm font-bold text-gray-700 mb-3">4. Horários disponíveis (para o profissional escolhido)</label>
-                        <div id="public-slots" class="grid grid-cols-4 sm:grid-cols-5 gap-3">
-                            <!-- Horários injetados aqui -->
+                    <!-- Adicionar novo serviço -->
+                    <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mb-6">
+                        <h4 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> Adicionar Serviço</h4>
+                        <div class="space-y-3">
+                            <select id="public-service-select" onchange="updatePublicProfDropdown()" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
+                                <option value="">-- Selecione o serviço --</option>
+                            </select>
+                            <select id="public-prof-select" onchange="updatePublicSlots()" disabled class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
+                                <option value="">-- Selecione o Profissional --</option>
+                            </select>
+                            <div id="public-slots" class="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-2"></div>
                         </div>
                     </div>
 
-                    <!-- 4. Formulário de Confirmação -->
-                    <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
-                        <h3 class="font-bold text-gray-800 mb-4">5. Os seus dados</h3>
+                    <!-- Formulário Final -->
+                    <div id="public-checkout-section" class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 hidden">
+                        <h3 class="font-bold text-gray-800 mb-4">2. Confirmar Agendamentos</h3>
                         <form id="public-booking-form" onsubmit="submitPublicBooking(event)" class="space-y-4">
                             <div>
                                 <label class="block text-xs font-bold text-gray-600 mb-1">Nome Completo</label>
@@ -130,8 +120,8 @@
                                     <input id="public-email" type="email" class="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
                                 </div>
                             </div>
-                            <button type="submit" id="public-submit-btn" disabled class="w-full bg-[#c41e3a] text-white py-3.5 rounded-xl font-bold hover:bg-[#a01729] transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed mt-4">
-                                Confirmar Agendamento
+                            <button type="submit" id="public-submit-btn" class="w-full bg-[#c41e3a] text-white py-3.5 rounded-xl font-bold hover:bg-[#a01729] transition shadow-lg mt-4">
+                                Finalizar Marcação
                             </button>
                         </form>
                     </div>
@@ -356,13 +346,14 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
-    const storage = firebase.storage(); // Novo: Instância do Storage
+    const storage = firebase.storage(); 
     const COLLECTION_NAME = "salao_data";
 
     let allData = [];
     let currentFormType = '';
     let selectedSlot = null;
     let currentCheckoutId = null; 
+    let publicCart = []; // Carrinho de agendamentos do cliente
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -390,9 +381,6 @@
                 if (isClientView) {
                     document.getElementById('client-view').classList.remove('hidden');
                     setupClientView();
-                    if (document.getElementById('public-service-select').value && document.getElementById('public-prof-select').value) {
-                        updatePublicSlots();
-                    }
                 } else {
                     const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
                     if (isLoggedIn) {
@@ -414,53 +402,86 @@
 
     window.onload = init;
 
-    // --- LÓGICA DO CLIENTE (AGENDAMENTO PÚBLICO) ---
+    // --- LÓGICA DO CLIENTE (AGENDAMENTO PÚBLICO MÚLTIPLO) ---
     function setupClientView() {
-        const services = allData.filter(d => d.type === 'servico');
-        const profs = allData.filter(d => d.type === 'profissional');
-        
-        const selSrv = document.getElementById('public-service-select');
-        const selPrf = document.getElementById('public-prof-select');
-        const curSrv = selSrv.value; const curPrf = selPrf.value;
-
-        selSrv.innerHTML = services.length ? '<option value="">-- Escolha um serviço --</option>' + services.map(s => `<option value="${s.__backendId}">${s.name} (${s.duration || 30} min) - R$ ${Number(s.price||0).toFixed(2)}</option>`).join('') : '<option value="">Sem serviços cadastrados.</option>';
-        selPrf.innerHTML = profs.length ? '<option value="">-- Escolha o Profissional --</option>' + profs.map(p => `<option value="${p.name}">${p.name}</option>`).join('') : '<option value="">Nenhum profissional disponível.</option>';
-            
-        if (curSrv) selSrv.value = curSrv;
-        if (curPrf) selPrf.value = curPrf;
-    }
-
-    function updatePublicAvailability() {
-        const serviceId = document.getElementById('public-service-select').value;
-        const profName = document.getElementById('public-prof-select').value;
-        const container = document.getElementById('public-availability');
-        
-        if (!serviceId || !profName) { container.classList.add('hidden'); return; }
-        
-        container.classList.remove('hidden');
         const today = new Date().toISOString().split('T')[0];
-        const dateInput = document.getElementById('public-date-select');
-        if (!dateInput.value) { dateInput.value = today; dateInput.min = today; }
-        
-        updatePublicSlots();
+        document.getElementById('public-date-select').min = today;
     }
 
-    function updatePublicSlots() {
-        const serviceId = document.getElementById('public-service-select').value;
-        const profName = document.getElementById('public-prof-select').value;
-        const selectedDate = document.getElementById('public-date-select').value;
+    window.handleClientDateChange = function() {
+        const d = document.getElementById('public-date-select').value;
+        if(!d) {
+            document.getElementById('public-services-section').classList.add('hidden');
+            return;
+        }
+        document.getElementById('public-services-section').classList.remove('hidden');
+        if(publicCart.length > 0) {
+            publicCart = []; 
+            renderCart();
+        }
+        populateClientServices();
+    };
+
+    function populateClientServices() {
+        const servs = allData.filter(d => d.type === 'servico');
+        const selSrv = document.getElementById('public-service-select');
+        selSrv.innerHTML = '<option value="">-- Selecione o serviço --</option>' + servs.map(s => `<option value="${s.__backendId}">${s.name} (${s.duration||30}m) - R$ ${Number(s.price||0).toFixed(2)}</option>`).join('');
+        
+        const selPrf = document.getElementById('public-prof-select');
+        selPrf.innerHTML = '<option value="">-- Selecione o Profissional --</option>';
+        selPrf.disabled = true;
+        document.getElementById('public-slots').innerHTML = '';
+    }
+
+    window.updatePublicProfDropdown = function() {
+        const srvId = document.getElementById('public-service-select').value;
+        const selPrf = document.getElementById('public-prof-select');
+        document.getElementById('public-slots').innerHTML = '';
+        
+        if(!srvId) {
+            selPrf.disabled = true;
+            selPrf.innerHTML = '<option value="">-- Selecione o Profissional --</option>';
+            return;
+        }
+
+        // Traz apenas os profissionais que exercem tal função (que têm o serviço marcado)
+        let profs = allData.filter(d => d.type === 'profissional' && d.servicos && d.servicos.includes(srvId));
+        
+        // Fallback: Se nenhum prof no sistema tem os serviços mapeados ainda, exibe todos para não travar o salão
+        if (profs.length === 0) profs = allData.filter(d => d.type === 'profissional'); 
+
+        if(profs.length === 0) {
+            selPrf.innerHTML = '<option value="">Nenhum profissional cadastrado.</option>';
+            selPrf.disabled = true;
+            return;
+        }
+
+        selPrf.disabled = false;
+        selPrf.innerHTML = '<option value="">-- Escolha o Profissional --</option>' + profs.map(p => `<option value="${p.__backendId}">${p.name}</option>`).join('');
+    };
+
+    window.updatePublicSlots = function() {
+        const srvId = document.getElementById('public-service-select').value;
+        const profId = document.getElementById('public-prof-select').value;
+        const date = document.getElementById('public-date-select').value;
         const slotsDiv = document.getElementById('public-slots');
-        const submitBtn = document.getElementById('public-submit-btn');
+        
+        if(!srvId || !profId || !date) {
+            slotsDiv.innerHTML = '';
+            return;
+        }
 
-        selectedSlot = null; submitBtn.disabled = true;
+        const service = allData.find(d => d.__backendId === srvId);
+        
+        // Horários já reservados na base de dados para este profissional e data
+        const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === profId && d.status !== 'cancelado');
+        const bookedTimes = new Set(dbBookings.map(b => b.time));
 
-        if (!serviceId || !profName || !selectedDate) return;
-
-        const service = allData.find(d => d.__backendId === serviceId);
-        if (!service) return;
-
-        const bookings = allData.filter(d => d.type === 'agendamento' && d.date === selectedDate && d.profissional === profName && d.status !== 'cancelado');
-        const bookedTimes = new Set(bookings.map(b => b.time));
+        // Adiciona horários que o cliente JÁ adicionou no carrinho
+        publicCart.forEach(item => {
+            if(item.profId === profId) bookedTimes.add(item.time); // Bloqueia prof
+            bookedTimes.add(item.time); // Bloqueia o próprio cliente (não pode estar em dois lugares)
+        });
 
         const slots = [];
         const duration = parseInt(service.duration) || 30;
@@ -473,60 +494,92 @@
         }
 
         slotsDiv.innerHTML = slots.map(s => `
-            <button type="button" onclick="selectSlot('${s.time}')" 
-                class="py-2.5 px-2 rounded-xl text-sm font-bold ${s.booked ? 'slot-booked' : 'slot-available'} ${selectedSlot === s.time ? 'slot-selected' : ''}" 
-                ${s.booked ? 'disabled title="Indisponível"' : ''}>${s.time}</button>
+            <button type="button" onclick="addToCart('${srvId}', '${profId}', '${s.time}')" 
+                class="py-2 px-1 rounded-lg text-xs font-bold ${s.booked ? 'bg-gray-100 text-gray-400 cursor-not-allowed line-through' : 'bg-white border border-gray-300 text-gray-700 hover:border-[#c41e3a] hover:text-[#c41e3a]'}" 
+                ${s.booked ? 'disabled' : ''}>${s.time}</button>
         `).join('');
-    }
+    };
 
-    function selectSlot(time) {
-        selectedSlot = time;
-        document.getElementById('public-submit-btn').disabled = false;
+    window.addToCart = function(srvId, profId, time) {
+        const srv = allData.find(d => d.__backendId === srvId);
+        const prof = allData.find(d => d.__backendId === profId);
         
-        const buttons = document.getElementById('public-slots').querySelectorAll('button');
-        buttons.forEach(btn => {
-            if (!btn.disabled) {
-                btn.className = btn.textContent.trim() === time ? "py-2.5 px-2 rounded-xl text-sm font-bold slot-selected" : "py-2.5 px-2 rounded-xl text-sm font-bold slot-available";
-            }
-        });
+        publicCart.push({ serviceId: srvId, serviceName: srv.name, servicePrice: srv.price, profId: profId, profName: prof.name, time: time });
+        
+        document.getElementById('public-service-select').value = '';
+        updatePublicProfDropdown();
+        renderCart();
+    };
+
+    window.removeCartItem = function(index) {
+        publicCart.splice(index, 1);
+        renderCart();
+        updatePublicSlots(); // Atualiza os botões de horário caso o utilizador esteja no meio de uma escolha
+    };
+
+    function renderCart() {
+        const listDiv = document.getElementById('public-cart-list');
+        const checkoutSec = document.getElementById('public-checkout-section');
+        
+        if(publicCart.length === 0) {
+            listDiv.innerHTML = '';
+            checkoutSec.classList.add('hidden');
+            return;
+        }
+
+        listDiv.innerHTML = publicCart.map((item, idx) => `
+            <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex justify-between items-center">
+                <div>
+                    <p class="font-bold text-sm text-indigo-900">${item.serviceName}</p>
+                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span></p>
+                </div>
+                <button type="button" onclick="removeCartItem(${idx})" class="text-red-500 hover:bg-red-100 p-1.5 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+            </div>
+        `).join('');
+        
+        checkoutSec.classList.remove('hidden');
+        try{lucide.createIcons();}catch(e){}
     }
 
     async function submitPublicBooking(e) {
         e.preventDefault();
-        if (!selectedSlot) { showToast('Por favor, selecione um horário acima.', 'error'); return; }
+        if (publicCart.length === 0) return;
 
-        const serviceId = document.getElementById('public-service-select').value;
-        const service = allData.find(d => d.__backendId === serviceId);
-        const profName = document.getElementById('public-prof-select').value;
         const phone = document.getElementById('public-phone').value.replace(/\D/g, '');
         const name = document.getElementById('public-name').value;
         const email = document.getElementById('public-email').value;
+        const date = document.getElementById('public-date-select').value;
         
-        const clienteExists = allData.find(d => d.type === 'cliente' && d.telefone === phone);
-        if (!clienteExists) {
-            await db.collection(COLLECTION_NAME).add({ type: 'cliente', nome: name, telefone: phone, email: email, data_nascimento: '', cpf: '', endereco: '' });
-        }
-
-        const data = {
-            type: 'agendamento', origem: 'Online', status: 'pendente',
-            client_name: name, phone: phone, service_name: service ? service.name : 'Serviço Padrão',
-            service_price: service ? service.price : 0, profissional: profName,
-            date: document.getElementById('public-date-select').value, time: selectedSlot,
-            criado_em: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
         setLoading(true, "A confirmar na cloud...");
         try {
-            await db.collection(COLLECTION_NAME).add(data);
+            const clienteExists = allData.find(d => d.type === 'cliente' && d.telefone === phone);
+            if (!clienteExists) {
+                await db.collection(COLLECTION_NAME).add({ type: 'cliente', nome: name, telefone: phone, email: email, data_nascimento: '', cpf: '', endereco: '' });
+            }
+
+            const promises = publicCart.map(item => {
+                return db.collection(COLLECTION_NAME).add({
+                    type: 'agendamento', origem: 'Online', status: 'pendente',
+                    client_name: name, phone: phone, 
+                    service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0, 
+                    profissional: item.profName, profissional_id: item.profId,
+                    date: date, time: item.time,
+                    criado_em: firebase.firestore.FieldValue.serverTimestamp()
+                });
+            });
+            
+            await Promise.all(promises);
             document.getElementById('public-booking-container').classList.add('hidden');
             document.getElementById('client-success-msg').classList.remove('hidden');
         } catch (err) { showToast("Erro ao agendar.", "error"); } finally { setLoading(false); }
     }
 
-    function resetClientForm() {
+    window.resetClientForm = function() {
         document.getElementById('public-booking-form').reset();
-        document.getElementById('public-availability').classList.add('hidden');
-        selectedSlot = null;
+        document.getElementById('public-date-select').value = '';
+        publicCart = [];
+        renderCart();
+        document.getElementById('public-services-section').classList.add('hidden');
         document.getElementById('client-success-msg').classList.add('hidden');
         document.getElementById('public-booking-container').classList.remove('hidden');
     }
@@ -642,7 +695,7 @@
         document.getElementById('modal-overlay').classList.remove('hidden');
     }
 
-    function toggleParcelas() {
+    window.toggleParcelas = function() {
         const meth = document.getElementById('checkout-metodo').value;
         const divP = document.getElementById('div-parcelas');
         if(meth === 'credito') divP.classList.remove('hidden'); else divP.classList.add('hidden');
@@ -662,7 +715,7 @@
                 await db.collection(COLLECTION_NAME).doc(currentCheckoutId).update({ status: 'concluido' });
                 await db.collection(COLLECTION_NAME).add({
                     type: 'conta', tipo_conta: 'receber', status_conta: 'pago',
-                    cliente_nome: appt.client_name, // Facilita a busca
+                    cliente_nome: appt.client_name, 
                     descricao: `Serviço: ${appt.service_name} (${appt.client_name})`,
                     valor: val, metodo: metodo, parcelas: parcelas,
                     vencimento: new Date().toISOString().split('T')[0],
@@ -756,7 +809,7 @@
         try { lucide.createIcons(); } catch(e) {}
     }
 
-    function showFicha(id) {
+    window.showFicha = function(id) {
         const cliente = allData.find(d => d.__backendId === id);
         if(!cliente) return;
         
@@ -791,7 +844,7 @@
 
         document.getElementById('modal-ficha').classList.remove('hidden');
     }
-    function closeFicha() { document.getElementById('modal-ficha').classList.add('hidden'); }
+    window.closeFicha = function() { document.getElementById('modal-ficha').classList.add('hidden'); }
 
     // DEMAIS RENDERS
     function renderFornecedores() {
@@ -828,7 +881,7 @@
     }
 
     // ABA FINANCEIRO COM FILTROS
-    function renderFinanceiro() {
+    window.renderFinanceiro = function() {
         let items = allData.filter(d => d.type === 'conta');
         
         // Aplica Filtros
@@ -893,19 +946,19 @@
             </div>`;
         }).join('');
         try{lucide.createIcons();}catch(e){}
-    }
+    };
 
-    async function toggleContaStatus(id) {
+    window.toggleContaStatus = async function(id) {
         const item = allData.find(d => d.__backendId === id);
         if (item) await db.collection(COLLECTION_NAME).doc(id).update({ status_conta: item.status_conta === 'pago' ? 'pendente' : 'pago' });
     }
 
-    async function updateQty(id, change) {
+    window.updateQty = async function(id, change) {
         const item = allData.find(d => d.__backendId === id);
         if (item) await db.collection(COLLECTION_NAME).doc(id).update({ quantity: Math.max(0, (parseInt(item.quantity)||0) + change) });
     }
 
-    async function deleteItem(id) {
+    window.deleteItem = async function(id) {
         if(confirm("Eliminar este registo permanentemente?")) await db.collection(COLLECTION_NAME).doc(id).delete();
     }
 
@@ -913,7 +966,6 @@
     async function uploadToStorage(file, folder) {
         if (!file) return null;
         try {
-            // Usa storageBucket da config
             const ref = storage.ref().child(`${folder}/${Date.now()}_${file.name}`);
             const snapshot = await ref.put(file);
             return await snapshot.ref.getDownloadURL();
@@ -925,15 +977,16 @@
     }
 
     // --- FORMULÁRIOS ADMIN MODAL ---
-    function showForm(type) {
+    window.showForm = function(type) {
         currentFormType = type;
         const form = document.getElementById('modal-form');
         const title = document.getElementById('modal-title');
         
         if (type === 'agendamento') {
             title.textContent = 'Nova Marcação Manual';
-            const profs = allData.filter(d => d.type === 'profissional');
             const servs = allData.filter(d => d.type === 'servico');
+            const sOpts = servs.map(s=>`<option value="${s.__backendId}" data-name="${s.name}" data-price="${s.price}">${s.name}</option>`).join('');
+            
             form.innerHTML = `
                 <div class="grid grid-cols-2 gap-3 mb-2">
                     <div class="col-span-2 relative">
@@ -941,8 +994,14 @@
                         <div id="appt-client-dropdown" class="absolute z-30 w-full bg-white border border-gray-200 rounded-xl mt-1 shadow-xl hidden max-h-48 overflow-y-auto"></div>
                     </div>
                     <input type="text" name="phone" id="appt-client-phone" placeholder="WhatsApp (Preenchimento automático)" required readonly class="col-span-2 w-full p-3 border rounded-xl bg-gray-50 cursor-not-allowed">
-                    <select name="service_name" required class="col-span-2 w-full p-3 border rounded-xl bg-white"><option value="">-- Serviço --</option>${servs.map(s=>`<option value="${s.name}" data-price="${s.price}">${s.name}</option>`).join('')}</select>
-                    <select name="profissional" required class="col-span-2 w-full p-3 border rounded-xl bg-white"><option value="">-- Profissional --</option>${profs.map(p=>`<option value="${p.name}">${p.name}</option>`).join('')}</select>
+                    
+                    <select id="admin-appt-service" name="service_id" onchange="filterAdminProfs()" required class="col-span-2 w-full p-3 border rounded-xl bg-white focus:ring-[#c41e3a]">
+                        <option value="">-- Serviço --</option>${sOpts}
+                    </select>
+                    <select id="admin-appt-prof" name="profissional_id" required class="col-span-2 w-full p-3 border rounded-xl bg-white focus:ring-[#c41e3a]">
+                        <option value="">-- Profissional --</option>
+                    </select>
+                    
                     <input type="date" name="date" required class="w-full p-3 border rounded-xl">
                     <input type="time" name="time" required class="w-full p-3 border rounded-xl">
                 </div>
@@ -961,10 +1020,18 @@
                 <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Salvar Ficha</button>`;
         } else if (type === 'profissional') {
             title.textContent = 'Novo Profissional';
+            const servs = allData.filter(d => d.type === 'servico');
+            const sHtml = servs.map(s => `<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="servicos_hab" value="${s.__backendId}"> ${s.name}</label>`).join('');
             form.innerHTML = `
                 <input name="name" placeholder="Nome do Profissional" required class="w-full p-3 border rounded-xl focus:ring-[#c41e3a]">
-                <input name="cargo" placeholder="Cargo/Especialidade (ex: Barbeiro, Manicure)" class="w-full p-3 border rounded-xl focus:ring-[#c41e3a]">
-                <button type="submit" class="w-full bg-purple-600 text-white p-3 rounded-xl font-bold">Salvar Equipe</button>`;
+                <input name="cargo" placeholder="Cargo/Especialidade (ex: Barbeiro, Manicure)" class="w-full p-3 border rounded-xl focus:ring-[#c41e3a] mb-3">
+                <div class="mt-3">
+                    <label class="text-xs font-bold text-gray-500 mb-2 block">Serviços que realiza (Obrigatório para o Agendamento Online):</label>
+                    <div class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-xl bg-gray-50">
+                        ${sHtml || '<p class="text-xs text-gray-400 col-span-2">Cadastre serviços primeiro na aba Serviços.</p>'}
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-purple-600 text-white p-3 rounded-xl font-bold mt-4">Salvar Equipe</button>`;
         } else if (type === 'fornecedor') {
             title.textContent = 'Novo Fornecedor';
             form.innerHTML = `
@@ -1043,9 +1110,22 @@
         }
         document.getElementById('modal-overlay').classList.remove('hidden');
         try{lucide.createIcons();}catch(e){}
-    }
+    };
 
-    function closeModal() { document.getElementById('modal-overlay').classList.add('hidden'); }
+    window.closeModal = function() { document.getElementById('modal-overlay').classList.add('hidden'); }
+
+    window.filterAdminProfs = function() {
+        const srvId = document.getElementById('admin-appt-service').value;
+        const profSel = document.getElementById('admin-appt-prof');
+        if(!srvId) {
+            profSel.innerHTML = '<option value="">-- Profissional --</option>';
+            return;
+        }
+        let validProfs = allData.filter(d => d.type === 'profissional' && d.servicos && d.servicos.includes(srvId));
+        if (validProfs.length === 0) validProfs = allData.filter(d => d.type === 'profissional'); // Fallback
+        
+        profSel.innerHTML = '<option value="">-- Profissional --</option>' + validProfs.map(p => `<option value="${p.__backendId}" data-name="${p.name}">${p.name}</option>`).join('');
+    };
 
     window.filterApptClient = function(term) {
         const dropdown = document.getElementById('appt-client-dropdown');
@@ -1082,18 +1162,22 @@
         document.getElementById('appt-client-dropdown').classList.add('hidden');
     };
 
-    async function handleAdminSubmit(e) {
+    window.handleAdminSubmit = async function(e) {
         e.preventDefault();
         const fd = new FormData(e.target);
         if (currentFormType === 'checkout') { return handleCheckoutSubmit(fd); }
         
-        // Conversão dos tipos separados para a coleção universal
         let actualType = currentFormType;
         if(currentFormType === 'receita') { actualType = 'conta'; fd.set('tipo_conta', 'receber'); fd.set('status_conta', 'pendente'); }
         if(currentFormType === 'despesa') { actualType = 'conta'; fd.set('tipo_conta', 'pagar'); fd.set('status_conta', 'pendente'); }
 
         const data = { type: actualType };
         
+        if (currentFormType === 'profissional') {
+            data.servicos = fd.getAll('servicos_hab'); // Guarda a array de serviços marcados
+            fd.delete('servicos_hab');
+        }
+
         if(currentFormType === 'agendamento') { 
             data.origem = 'Manual Admin'; data.status = 'pendente'; 
             const phone = fd.get('phone').replace(/\D/g, ''); fd.set('phone', phone);
@@ -1101,16 +1185,18 @@
             const clienteExists = allData.find(d => d.type === 'cliente' && d.nome === fd.get('client_name'));
             if (!clienteExists) { showToast("Erro: Cliente não cadastrado.", "error"); return; }
             
-            const sName = fd.get('service_name');
-            const sObj = allData.find(d => d.type === 'servico' && d.name === sName);
-            data.service_price = sObj ? sObj.price : 0;
+            const srvSel = document.getElementById('admin-appt-service');
+            const profSel = document.getElementById('admin-appt-prof');
+            
+            data.service_name = srvSel.options[srvSel.selectedIndex].dataset.name;
+            data.service_price = srvSel.options[srvSel.selectedIndex].dataset.price || 0;
+            data.profissional = profSel.options[profSel.selectedIndex].dataset.name;
         }
 
         fd.forEach((v, k) => data[k] = v);
-        closeModal(); setLoading(true, "A gravar e a fazer upload...");
+        closeModal(); setLoading(true, "A gravar...");
 
         try { 
-            // Gestão de Uploads para Despesas
             if (currentFormType === 'despesa') {
                 const bolFile = document.getElementById('file-boleto').files[0];
                 const compFile = document.getElementById('file-comprovante').files[0];
@@ -1123,7 +1209,7 @@
                     const compUrl = await uploadToStorage(compFile, 'comprovantes');
                     if(compUrl) {
                         data.comprovante_url = compUrl;
-                        data.status_conta = 'pago'; // Se tem comprovativo, está pago.
+                        data.status_conta = 'pago'; 
                     }
                 }
             }
@@ -1133,24 +1219,24 @@
         } 
         catch(err) { showToast("Erro ao guardar", "error"); console.error(err); } 
         finally { setLoading(false); }
-    }
+    };
 
     // --- FUNÇÕES UTILITÁRIAS ---
-    function formatDate(d) {
+    window.formatDate = function(d) {
         if(!d) return '';
         try {
             const [y, m, day] = d.split('-');
             return `${day}/${m}`;
         } catch { return d; }
-    }
+    };
 
-    function sendWhatsApp(phone, name, time) {
+    window.sendWhatsApp = function(phone, name, time) {
         const cleanPhone = (phone || '').replace(/\D/g, '');
         const msg = encodeURIComponent(`Olá ${name || ''}! Confirmamos a sua marcação hoje às ${time || ''}. Ficamos à espera!`);
         window.open(`https://wa.me/55${cleanPhone}?text=${msg}`, '_blank');
-    }
+    };
 
-    function showToast(msg, type) {
+    window.showToast = function(msg, type) {
         const toast = document.getElementById('toast');
         const content = document.getElementById('toast-content');
         content.className = `px-6 py-3 rounded-xl shadow-2xl text-white font-medium flex items-center gap-3 ${type === 'success' ? 'bg-green-600' : 'bg-red-600'}`;
@@ -1158,7 +1244,7 @@
         toast.classList.remove('translate-y-20', 'opacity-0');
         try { lucide.createIcons(); } catch(e) {}
         setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
-    }
+    };
 </script>
 </body>
 </html>
