@@ -188,6 +188,13 @@
                     </div>
                 </div>
             </div>
+            
+            <!-- Link de segurança para forçar o regresso ao Admin -->
+            <div class="mt-12 text-center pb-8 border-t border-gray-200 pt-6">
+                <a href="?" class="text-sm font-bold text-gray-400 hover:text-[#c41e3a] flex items-center justify-center gap-2 transition">
+                    <i data-lucide="lock" class="w-4 h-4"></i> Acesso Restrito (Gestão)
+                </a>
+            </div>
         </section>
     </div>
 
@@ -207,7 +214,7 @@
                             <p class="text-sm text-pink-100 mt-1">Gestão Completa ERP</p>
                         </div>
                     </div>
-                    <!-- Botão logout mobile -->
+                    <!-- Botão logout mobile original -->
                     <div class="flex md:hidden items-center gap-3">
                         <button onclick="logout()" class="px-3 py-2 bg-red-900/40 hover:bg-red-900/60 text-white rounded-lg text-sm font-bold transition flex items-center gap-2"><i data-lucide="log-out" class="w-4 h-4"></i> Sair</button>
                     </div>
@@ -227,6 +234,7 @@
                     <button onclick="copyClientLink()" class="hidden md:flex items-center gap-2 bg-white text-[#c41e3a] px-3 py-2 rounded-full text-sm font-bold hover:bg-red-50 transition shadow-sm">
                         <i data-lucide="link" class="w-4 h-4"></i> Link Público
                     </button>
+                    <!-- Botão logout desktop original -->
                     <button onclick="logout()" class="hidden md:flex items-center gap-2 bg-red-900/40 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-red-900/60 transition shadow-sm ml-2">
                         <i data-lucide="log-out" class="w-4 h-4"></i> Sair do Sistema
                     </button>
@@ -234,9 +242,9 @@
             </div>
         </header>
 
-        <!-- TABS DE NAVEGAÇÃO -->
+        <!-- TABS DE NAVEGAÇÃO (AGORA COM BOTÃO DE SAIR SEMPRE VISÍVEL) -->
         <nav class="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
-            <div class="max-w-7xl mx-auto flex overflow-x-auto no-scrollbar">
+            <div class="max-w-7xl mx-auto flex overflow-x-auto no-scrollbar items-center">
                 <button onclick="switchTabAdmin('dashboard')" id="tab-dashboard" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</button>
                 <button onclick="switchTabAdmin('ia')" id="tab-ia" class="px-5 py-4 text-sm font-medium text-purple-600 hover:text-purple-800 flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent"><i data-lucide="bot" class="w-4 h-4"></i> Assistente IA</button>
                 <button onclick="switchTabAdmin('agendamentos')" id="tab-agendamentos" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="calendar-days" class="w-4 h-4"></i> Agenda</button>
@@ -247,6 +255,11 @@
                 <button onclick="switchTabAdmin('fornecedores')" id="tab-fornecedores" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="truck" class="w-4 h-4"></i> Fornecedores</button>
                 <button onclick="switchTabAdmin('financeiro')" id="tab-financeiro" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Financeiro</button>
                 <button onclick="switchTabAdmin('aniversariantes')" id="tab-aniversariantes" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="gift" class="w-4 h-4"></i> Aniversariantes</button>
+                
+                <!-- NOVO BOTÃO DE SAIR NAS ABAS (SEMPRE VISÍVEL SE FIZER SCROLL) -->
+                <button onclick="logout()" class="px-5 py-4 text-sm font-bold text-red-600 hover:text-red-800 flex items-center gap-2 whitespace-nowrap ml-auto bg-red-50 border-l border-red-100 transition">
+                    <i data-lucide="log-out" class="w-4 h-4"></i> Sair da Conta
+                </button>
             </div>
         </nav>
 
@@ -924,10 +937,10 @@
         setLoading(true, "A sair...");
         auth.signOut().then(() => {
             sessionStorage.removeItem('admin_logged_in'); 
-            window.location.reload(); 
+            window.location.href = window.location.pathname; // Remove parâmetros como ?view=cliente
         }).catch(() => {
             sessionStorage.removeItem('admin_logged_in'); 
-            window.location.reload(); 
+            window.location.href = window.location.pathname; 
         });
     }
 
