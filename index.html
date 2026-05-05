@@ -72,7 +72,7 @@
             <!-- CONTAINER: REGISTER -->
             <div id="register-container" class="hidden">
                 <h1 class="text-2xl font-bold text-gray-800 mb-2">Criar Conta</h1>
-                <p class="text-sm text-gray-500 mb-8">Registe-se para aceder ao painel de gestão.</p>
+                <p class="text-sm text-gray-500 mb-8">Registe-se para aceder ao painel de gestão exclusivo para o seu salão.</p>
                 <form onsubmit="handleRegister(event)" class="space-y-4 text-left">
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
@@ -209,7 +209,7 @@
                     </div>
                     <!-- Botão logout mobile -->
                     <div class="flex md:hidden items-center gap-3">
-                        <button onclick="logout()" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                        <button onclick="logout()" class="px-3 py-2 bg-red-900/40 hover:bg-red-900/60 text-white rounded-lg text-sm font-bold transition flex items-center gap-2"><i data-lucide="log-out" class="w-4 h-4"></i> Sair</button>
                     </div>
                 </div>
                 
@@ -227,8 +227,8 @@
                     <button onclick="copyClientLink()" class="hidden md:flex items-center gap-2 bg-white text-[#c41e3a] px-3 py-2 rounded-full text-sm font-bold hover:bg-red-50 transition shadow-sm">
                         <i data-lucide="link" class="w-4 h-4"></i> Link Público
                     </button>
-                    <button onclick="logout()" class="hidden md:flex p-2 bg-white/10 hover:bg-white/20 rounded-full transition ml-2" title="Sair">
-                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    <button onclick="logout()" class="hidden md:flex items-center gap-2 bg-red-900/40 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-red-900/60 transition shadow-sm ml-2">
+                        <i data-lucide="log-out" class="w-4 h-4"></i> Sair do Sistema
                     </button>
                 </div>
             </div>
@@ -546,11 +546,18 @@
     const auth = firebase.auth();
     const COLLECTION_NAME = "salao_data";
 
-    let allData = [];
+    let allDataGlobal = []; // Guarda todos os dados brutos da coleção
+    let allData = []; // Guarda APENAS os dados do salão logado (ou que o cliente está a ver)
+    
+    let currentUserId = null; // ID único do salão
     let currentFormType = '';
-    let selectedSlot = null;
     let currentCheckoutId = null; 
     let publicCart = [];
+
+    // URL Handlers
+    const urlParams = new URLSearchParams(window.location.search);
+    const isClientView = urlParams.get('view') === 'cliente';
+    const urlSalonId = urlParams.get('salon') || 'admin_default';
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -561,41 +568,90 @@
         else loader.classList.add('hidden');
     }
 
+    // --- OUVINTE DE ESTADO DE AUTENTICAÇÃO ---
+    auth.onAuthStateChanged(user => {
+        if (user) {
+            // Utilizador real do Firebase
+            currentUserId = user.uid;
+            sessionStorage.setItem('admin_logged_in', 'true');
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.remove('hidden');
+            switchTabAdmin('dashboard');
+            
+            if (allDataGlobal.length > 0) filterAndRenderData();
+            setLoading(false);
+        } else {
+            // Pode ser o admin nativo de fallback ou ninguém
+            if (sessionStorage.getItem('admin_logged_in') === 'true') {
+                currentUserId = 'admin_default';
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                switchTabAdmin('dashboard');
+                
+                if (allDataGlobal.length > 0) filterAndRenderData();
+                setLoading(false);
+            } else {
+                currentUserId = null;
+                if (!isClientView) {
+                    document.getElementById('login-view').classList.remove('hidden');
+                    document.getElementById('admin-view').classList.add('hidden');
+                }
+                setLoading(false);
+            }
+        }
+    });
+
     // --- INICIALIZAÇÃO ---
     async function init() {
         setLoading(true, "A ligar à base de dados...");
         
+        if (isClientView) {
+            document.getElementById('client-view').classList.remove('hidden');
+            setupClientView();
+        }
+        
         try {
             db.collection(COLLECTION_NAME).onSnapshot((snapshot) => {
-                allData = [];
+                allDataGlobal = [];
                 snapshot.forEach((doc) => {
-                    allData.push({ ...doc.data(), __backendId: doc.id });
+                    allDataGlobal.push({ ...doc.data(), __backendId: doc.id });
                 });
-
-                const urlParams = new URLSearchParams(window.location.search);
-                const isClientView = urlParams.get('view') === 'cliente';
-
-                if (isClientView) {
-                    document.getElementById('client-view').classList.remove('hidden');
-                    setupClientView();
-                } else {
-                    const isLoggedIn = sessionStorage.getItem('admin_logged_in') === 'true';
-                    if (isLoggedIn) {
-                        document.getElementById('admin-view').classList.remove('hidden');
-                        renderAllAdmin();
-                        switchTabAdmin('dashboard');
-                    } else {
-                        document.getElementById('login-view').classList.remove('hidden');
-                    }
-                }
-                setLoading(false);
+                
+                filterAndRenderData();
             }, (error) => {
-                console.error(error);
+                console.error("Erro na base de dados:", error);
                 setLoading(false);
             });
         } catch (e) { console.error(e); setLoading(false); }
         
         try { lucide.createIcons(); } catch(e) {}
+    }
+
+    // --- FILTRAGEM DE INQUILINOS (MULTI-TENANCY) ---
+    // Filtra para que o utilizador X NUNCA veja os dados do utilizador Y
+    function filterAndRenderData() {
+        if (isClientView) {
+            allData = allDataGlobal.filter(d => !d.userId || d.userId === urlSalonId);
+            populateClientServices();
+            if(document.getElementById('public-services-section') && !document.getElementById('public-services-section').classList.contains('hidden')) {
+               updatePublicSlots();
+               renderCart();
+            }
+            setLoading(false);
+            return;
+        }
+
+        if (currentUserId) {
+            if (currentUserId === 'admin_default') {
+                // Admin antigo vê os dados antigos ou os seus próprios dados
+                allData = allDataGlobal.filter(d => !d.userId || d.userId === 'admin_default');
+            } else {
+                // Utilizadores novos veem apenas e exclusivamente os seus dados (isolamento total)
+                allData = allDataGlobal.filter(d => d.userId === currentUserId);
+            }
+            renderAllAdmin();
+            setLoading(false);
+        }
     }
 
     window.onload = init;
@@ -741,18 +797,20 @@
         const name = document.getElementById('public-name').value;
         const email = document.getElementById('public-email').value;
         const date = document.getElementById('public-date-select').value;
+        const targetSalonId = urlSalonId; 
         
         setLoading(true, "A confirmar na cloud...");
         try {
             const clienteExists = allData.find(d => d.type === 'cliente' && d.telefone === phone);
             if (!clienteExists) {
-                await db.collection(COLLECTION_NAME).add({ type: 'cliente', nome: name, telefone: phone, email: email, data_nascimento: '', cpf: '', endereco: '' });
+                await db.collection(COLLECTION_NAME).add({ type: 'cliente', userId: targetSalonId, nome: name, telefone: phone, email: email, data_nascimento: '', cpf: '', endereco: '' });
             }
 
             const promises = publicCart.map((item, index) => {
                 const reqNum = generateRequisicao(index);
                 return db.collection(COLLECTION_NAME).add({
                     type: 'agendamento', origem: 'Online', status: 'pendente',
+                    userId: targetSalonId,
                     requisicao: reqNum,
                     client_name: name, phone: phone, 
                     service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0, 
@@ -794,24 +852,16 @@
         setLoading(true, "A autenticar...");
         try {
             await auth.signInWithEmailAndPassword(email, pass);
-            sessionStorage.setItem('admin_logged_in', 'true');
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('admin-view').classList.remove('hidden');
-            renderAllAdmin();
-            switchTabAdmin('dashboard');
+            // Sucesso -> o onAuthStateChanged trata do resto
         } catch (error) {
             // Conta Admin nativa de segurança
             if ((email === 'admin' || email === 'admin@gestao.com') && pass === 'admin123') {
                 sessionStorage.setItem('admin_logged_in', 'true');
-                document.getElementById('login-view').classList.add('hidden');
-                document.getElementById('admin-view').classList.remove('hidden');
-                renderAllAdmin();
-                switchTabAdmin('dashboard');
+                window.location.reload(); 
             } else {
                 showToast("Credenciais incorretas ou conta não existe.", "error");
+                setLoading(false);
             }
-        } finally {
-            setLoading(false);
         }
     }
 
@@ -830,15 +880,10 @@
         try {
             await auth.createUserWithEmailAndPassword(email, pass);
             showToast("Conta criada com sucesso!", "success");
-            sessionStorage.setItem('admin_logged_in', 'true');
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('admin-view').classList.remove('hidden');
-            renderAllAdmin();
-            switchTabAdmin('dashboard');
+            // Sucesso -> o onAuthStateChanged trata do resto
         } catch (error) {
             console.error(error);
-            showToast("Erro: O serviço de Autenticação não está ativo no Firebase Console.", "error");
-        } finally {
+            showToast("Erro: E-mail inválido, já existe ou senha fraca.", "error");
             setLoading(false);
         }
     }
@@ -859,6 +904,7 @@
     }
 
     function logout() { 
+        setLoading(true, "A sair...");
         auth.signOut().then(() => {
             sessionStorage.removeItem('admin_logged_in'); 
             window.location.reload(); 
@@ -869,7 +915,7 @@
     }
 
     function copyClientLink() {
-        const link = window.location.origin + window.location.pathname + '?view=cliente';
+        const link = window.location.origin + window.location.pathname + '?view=cliente&salon=' + currentUserId;
         const i = document.createElement("input"); i.value = link; document.body.appendChild(i); i.select(); document.execCommand("copy"); document.body.removeChild(i);
         showToast("Link copiado! Cole no WhatsApp.", "success");
     }
@@ -1249,10 +1295,11 @@
             } else {
                 await db.collection(COLLECTION_NAME).doc(currentCheckoutId).update({ status: 'concluido' });
                 
-                // Lança no financeiro
+                // Lança no financeiro com a identificação do utilizador/salão
                 const descReq = appt.requisicao ? ` [Req: ${appt.requisicao}]` : '';
                 await db.collection(COLLECTION_NAME).add({
                     type: 'conta', tipo_conta: 'receber', status_conta: 'pago',
+                    userId: currentUserId,
                     cliente_nome: appt.client_name, 
                     descricao: `Serviço: ${appt.service_name} (${appt.client_name})${descReq}`,
                     valor: val, metodo: metodo, parcelas: parcelas,
@@ -1853,7 +1900,7 @@
         if(currentFormType === 'receita') { actualType = 'conta'; fd.set('tipo_conta', 'receber'); fd.set('status_conta', 'pendente'); }
         if(currentFormType === 'despesa') { actualType = 'conta'; fd.set('tipo_conta', 'pagar'); fd.set('status_conta', 'pendente'); }
 
-        const data = { type: actualType };
+        const data = { type: actualType, userId: currentUserId };
         
         if (currentFormType === 'profissional') {
             data.servicos = fd.getAll('servicos_hab'); // Guarda a array de serviços marcados
@@ -1955,3 +2002,4 @@
 </script>
 </body>
 </html>
+
