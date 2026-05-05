@@ -785,10 +785,10 @@
     }
 
     // =========================================================================
-    // LÓGICA DO ASSISTENTE DE IA (GEMINI API) - SOLUÇÃO FINAL COM AUTO-DESCOBERTA
+    // LÓGICA DO ASSISTENTE DE IA (GEMINI API) - FALLBACK SEQUENCIAL ROBUSTO
     // =========================================================================
     
-    // A SUA CHAVE DA API JÁ ESTÁ INSERIDA AQUI:
+    // A SUA CHAVE DA API
     const apiKey = "AIzaSyDcdRPYCYYmF0wYknPccfukV5u-xkr0FSM"; 
     
     window.sendToIA = async function() {
@@ -804,29 +804,7 @@
         btn.innerHTML = '<div class="spinner-small"></div> processando...';
         
         try {
-            // 1. AUTO-DESCOBERTA DO MODELO: O sistema descobre que modelos a sua chave suporta
-            let targetModel = 'models/gemini-1.5-flash'; // Padrão se a descoberta falhar
-            
-            try {
-                const reqModels = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-                if (reqModels.ok) {
-                    const resModels = await reqModels.json();
-                    const suportados = resModels.models.filter(m => 
-                        m.supportedGenerationMethods && 
-                        m.supportedGenerationMethods.includes("generateContent") && 
-                        m.name.includes("gemini")
-                    );
-                    if (suportados.length > 0) {
-                        // Prefere o flash, senão o pro, senão o primeiro da lista que funcionar
-                        const modelFlash = suportados.find(m => m.name.includes("flash"));
-                        const modelPro = suportados.find(m => m.name.includes("pro"));
-                        targetModel = (modelFlash || modelPro || suportados[0]).name;
-                        console.log("Modelo selecionado automaticamente:", targetModel);
-                    }
-                }
-            } catch(e) { console.log("Aviso: Falha ao listar modelos automáticos, a usar padrão."); }
-
-            // 2. Construir o Contexto (Dados do Sistema)
+            // 1. Construir o Contexto (Dados do Sistema)
             const today = new Date().toISOString().split('T')[0];
             const currentMonth = new Date().getMonth() + 1;
             
@@ -840,15 +818,15 @@
                 try { return parseInt(c.data_nascimento.split('-')[1], 10) === currentMonth; } catch(e) { return false; }
             });
 
-            // Prompt Universal (Formato compatível com 100% dos modelos Gemini, antigos ou novos)
-            const universalPrompt = `[INSTRUÇÕES DO SISTEMA]: Você é a IA assistente integrada ao software 'Gestão Beauty'. O seu papel é analisar os dados financeiros, de estoque, agenda e clientes para ajudar o gestor do salão a faturar mais e organizar-se. Responda em Português de Portugal. Seja conciso e vá direto ao ponto. Use tags HTML simples (<b>, <br>, <ul>, <li>) para formatar a resposta dentro do chat.
+            // Prompt Universal Simplificado para evitar bloqueios de tokens
+            const universalPrompt = `[INSTRUÇÕES DO SISTEMA]: Você é a IA assistente integrada ao software 'Gestão Beauty'. O seu papel é ajudar o gestor do salão a faturar mais e organizar-se. Responda em Português de Portugal. Seja direto ao ponto. Use tags HTML simples (<b>, <br>, <ul>, <li>) para formatar a resposta dentro do chat.
 
-[DADOS ATUAIS DO SISTEMA]:
+[DADOS ATUAIS]:
 - Data de hoje: ${today}
-- Agendamentos para hoje: ${agendamentosHoje.length} consultas (${agendamentosHoje.map(a=>a.client_name + ' às ' + a.time).join(', ')}).
-- Produtos com Estoque Baixo/Esgotado: ${estoqueBaixo.map(e => e.item_name + ' (Qtd: ' + e.quantity + ')').join(', ') || 'Nenhum'}.
-- Total de Contas a Receber (Fiados/Pendentes): R$ ${contasReceber.reduce((a,b)=>a+Number(b.valor),0).toFixed(2)}.
-- Total de Contas a Pagar (Despesas): R$ ${contasPagar.reduce((a,b)=>a+Number(b.valor),0).toFixed(2)}.
+- Agendamentos para hoje: ${agendamentosHoje.length} consultas.
+- Produtos com Estoque Baixo: ${estoqueBaixo.map(e => e.item_name).join(', ') || 'Nenhum'}.
+- Contas a Receber (Fiados): R$ ${contasReceber.reduce((a,b)=>a+Number(b.valor),0).toFixed(2)}.
+- Contas a Pagar (Despesas): R$ ${contasPagar.reduce((a,b)=>a+Number(b.valor),0).toFixed(2)}.
 - Aniversariantes deste mês: ${aniversariantes.length} clientes (${aniversariantes.map(a=>a.nome).join(', ')}).
 
 [PERGUNTA DO GESTOR]: ${userText}`;
@@ -857,26 +835,50 @@
                 contents: [{ role: "user", parts: [{ text: universalPrompt }] }]
             };
 
-            // 3. Fazer o pedido à API
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${targetModel}:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-                console.error("Detalhes do Erro API Gemini:", result);
-                throw new Error(result.error?.message || "Erro desconhecido na API do Gemini.");
+            // 2. LISTA DE MODELOS (TENTATIVA SEQUENCIAL)
+            // Se o primeiro falhar (por não existir na sua versão de API), ele tenta o próximo.
+            const modelosParaTestar = [
+                'gemini-1.5-flash',
+                'gemini-1.5-flash-latest',
+                'gemini-1.0-pro',
+                'gemini-pro'
+            ];
+
+            let sucesso = false;
+            let ultimoErro = "";
+
+            for (const modelo of modelosParaTestar) {
+                try {
+                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const result = await response.json();
+
+                    if (response.ok) {
+                        const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || "Erro ao formatar resposta da IA.";
+                        appendChatMessage('ai', aiText);
+                        sucesso = true;
+                        break; // Sai do loop imediatamente porque encontrou um modelo que funciona!
+                    } else {
+                        ultimoErro = result.error?.message || "Erro desconhecido.";
+                        // Continua silenciosamente para tentar o próximo modelo na lista...
+                    }
+                } catch (e) {
+                    ultimoErro = e.message;
+                    // Continua silenciosamente para tentar o próximo modelo...
+                }
             }
-            
-            const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, ocorreu um erro ao extrair o texto da resposta.";
-            
-            appendChatMessage('ai', aiText);
+
+            if (!sucesso) {
+                throw new Error(ultimoErro || "Nenhum modelo suportado pela sua chave funcionou.");
+            }
+
         } catch(e) {
             console.error(e);
-            appendChatMessage('ai', `<span class="text-red-500 font-bold">Erro de Comunicação API:</span> <span class="text-red-500">${e.message || "Falha ao conectar."}</span>`);
+            appendChatMessage('ai', `<span class="text-red-500 font-bold">Erro de Comunicação API:</span> <span class="text-red-500 text-sm">${e.message || "Falha ao conectar."}</span><br><br><span class="text-xs text-gray-500">Nota: Verifique no Google AI Studio se a sua Chave API tem restrições de uso ou se o limite gratuito esgotou.</span>`);
         } finally {
             btn.disabled = false;
             btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Enviar';
