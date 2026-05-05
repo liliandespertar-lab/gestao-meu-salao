@@ -159,6 +159,7 @@
                     <button onclick="switchTabAdmin('estoque')" id="tab-estoque" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="package" class="w-4 h-4"></i> Estoque</button>
                     <button onclick="switchTabAdmin('fornecedores')" id="tab-fornecedores" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="truck" class="w-4 h-4"></i> Fornecedores</button>
                     <button onclick="switchTabAdmin('financeiro')" id="tab-financeiro" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Financeiro</button>
+                    <button onclick="switchTabAdmin('aniversariantes')" id="tab-aniversariantes" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="gift" class="w-4 h-4"></i> Aniversariantes</button>
                 </div>
             </div>
         </nav>
@@ -279,6 +280,17 @@
 
                 <div id="financeiro-summary" class="grid grid-cols-2 gap-4"></div>
                 <div id="financeiro-list" class="space-y-3"></div>
+            </section>
+
+            <!-- ABA: ANIVERSARIANTES -->
+            <section id="section-aniversariantes" class="fade-in hidden space-y-4">
+                <div class="flex justify-between items-center pt-2">
+                    <h2 class="text-lg font-bold text-gray-800">Aniversariantes do Mês</h2>
+                </div>
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-4">
+                    <p class="text-indigo-800 text-sm flex items-center gap-2 font-medium"><i data-lucide="info" class="w-4 h-4"></i> Aproveite para enviar felicitações e campanhas promocionais para os clientes abaixo!</p>
+                </div>
+                <div id="aniversariantes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
             </section>
         </main>
     </div>
@@ -557,9 +569,11 @@
                 await db.collection(COLLECTION_NAME).add({ type: 'cliente', nome: name, telefone: phone, email: email, data_nascimento: '', cpf: '', endereco: '' });
             }
 
-            const promises = publicCart.map(item => {
+            const promises = publicCart.map((item, index) => {
+                const reqNum = generateRequisicao(index);
                 return db.collection(COLLECTION_NAME).add({
                     type: 'agendamento', origem: 'Online', status: 'pendente',
+                    requisicao: reqNum,
                     client_name: name, phone: phone, 
                     service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0, 
                     profissional: item.profName, profissional_id: item.profId,
@@ -604,7 +618,7 @@
     }
 
     function switchTabAdmin(tab) {
-        const sections = ['agendamentos', 'clientes', 'equipe', 'servicos', 'estoque', 'financeiro', 'fornecedores'];
+        const sections = ['agendamentos', 'clientes', 'equipe', 'servicos', 'estoque', 'financeiro', 'fornecedores', 'aniversariantes'];
         sections.forEach(s => {
             document.getElementById(`section-${s}`).classList.toggle('hidden', s !== tab);
             const btn = document.getElementById(`tab-${s}`);
@@ -616,7 +630,7 @@
     }
 
     function renderAllAdmin() {
-        renderAgendamentos(); renderClientes(); renderEquipe(); renderServicos(); renderEstoque(); renderFinanceiro(); renderFornecedores();
+        renderAgendamentos(); renderClientes(); renderEquipe(); renderServicos(); renderEstoque(); renderFinanceiro(); renderFornecedores(); renderAniversariantes();
     }
 
     // ABA AGENDA E BAIXAS
@@ -639,6 +653,7 @@
                         <div class="flex items-center gap-2 mb-1">
                             <h4 class="font-bold text-gray-800 text-lg">${item.client_name || 'Cliente'}</h4>
                             ${statusBadge}
+                            ${item.requisicao ? `<span class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded font-bold border border-gray-200">Req: ${item.requisicao}</span>` : ''}
                         </div>
                         <p class="text-sm text-gray-600"><span class="font-bold">${item.service_name}</span> com <span class="font-bold text-indigo-600">${item.profissional || 'Geral'}</span></p>
                         <p class="text-xs text-gray-400 mt-0.5"><i data-lucide="clock" class="w-3 h-3 inline"></i> ${formatDate(item.date)} às ${item.time}</p>
@@ -713,10 +728,13 @@
                 await db.collection(COLLECTION_NAME).doc(currentCheckoutId).update({ status: 'fiado', valor_devido: val });
             } else {
                 await db.collection(COLLECTION_NAME).doc(currentCheckoutId).update({ status: 'concluido' });
+                
+                // Lança no financeiro como "Recebido/Pago" indicando a Requisição se houver
+                const descReq = appt.requisicao ? ` [Req: ${appt.requisicao}]` : '';
                 await db.collection(COLLECTION_NAME).add({
                     type: 'conta', tipo_conta: 'receber', status_conta: 'pago',
                     cliente_nome: appt.client_name, 
-                    descricao: `Serviço: ${appt.service_name} (${appt.client_name})`,
+                    descricao: `Serviço: ${appt.service_name} (${appt.client_name})${descReq}`,
                     valor: val, metodo: metodo, parcelas: parcelas,
                     vencimento: new Date().toISOString().split('T')[0],
                     data_pagamento: new Date().toISOString()
@@ -828,9 +846,11 @@
             if(h.status === 'concluido') sBadge = `<span class="text-xs text-green-600 font-bold">Pago</span>`;
             if(h.status === 'fiado') { sBadge = `<span class="text-xs text-red-600 font-bold">Fiado</span>`; dividaTotal += Number(h.valor_devido || h.service_price || 0); }
             
+            const reqLabel = h.requisicao ? `<span class="text-[10px] bg-gray-100 text-gray-500 px-1 rounded ml-1 border">Req: ${h.requisicao}</span>` : '';
+
             return `
             <div class="flex justify-between items-center py-2 border-b border-gray-50 last:border-0">
-                <div><p class="font-bold text-sm text-gray-800">${h.service_name}</p><p class="text-xs text-gray-500">${formatDate(h.date)} com ${h.profissional||'Geral'}</p></div>
+                <div><p class="font-bold text-sm text-gray-800">${h.service_name} ${reqLabel}</p><p class="text-xs text-gray-500">${formatDate(h.date)} com ${h.profissional||'Geral'}</p></div>
                 <div class="text-right">${sBadge} ${h.status === 'pendente' ? `<br><button onclick="closeFicha(); openCheckout('${h.__backendId}')" class="text-xs text-emerald-600 hover:underline mt-1">Dar Baixa</button>` : ''}</div>
             </div>`;
         }).join('');
@@ -853,7 +873,8 @@
             <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-md transition">
                 <div>
                     <h4 class="font-bold text-gray-800">${item.nome}</h4>
-                    <p class="text-sm text-gray-500">CNPJ: ${item.cnpj || 'N/A'} | Tel: ${item.telefone || 'N/A'}</p>
+                    <p class="text-xs text-gray-500">CNPJ: ${item.cnpj || 'N/A'} | Tel: ${item.telefone || 'N/A'}</p>
+                    ${item.produtos ? `<p class="text-xs text-indigo-600 mt-1 font-medium bg-indigo-50 px-2 py-1 rounded inline-block"><i data-lucide="package" class="w-3 h-3 inline"></i> ${item.produtos}</p>` : ''}
                 </div>
                 <button onclick="deleteItem('${item.__backendId}')" class="p-1.5 text-gray-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
@@ -874,9 +895,59 @@
         const items = allData.filter(d => d.type === 'estoque');
         document.getElementById('estoque-list').innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4">Vazio.</p>' : items.map(item => `
             <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
-                <div><span class="text-xs font-bold uppercase text-gray-400">${item.category}</span><h4 class="font-bold">${item.item_name}</h4><p class="text-xs mt-1 font-bold ${Number(item.quantity) <= Number(item.min_stock) ? 'text-red-600' : 'text-green-600'}">Qtd: ${item.quantity}</p></div>
-                <div class="mt-4 flex gap-2"><button onclick="updateQty('${item.__backendId}', 1)" class="flex-1 bg-gray-100 py-1 rounded font-bold">+</button><button onclick="updateQty('${item.__backendId}', -1)" class="flex-1 bg-gray-100 py-1 rounded font-bold">-</button><button onclick="deleteItem('${item.__backendId}')" class="p-1 text-red-300"><i data-lucide="trash-2" class="w-4 h-4"></i></button></div>
+                <div>
+                    <span class="text-xs font-bold uppercase text-gray-400">${item.category}</span>
+                    <h4 class="font-bold">${item.item_name}</h4>
+                    <p class="text-xs mt-1 font-bold ${Number(item.quantity) <= Number(item.min_stock) ? 'text-red-600' : 'text-green-600'}">Saldo Atual: ${item.quantity}</p>
+                    ${item.ultima_data_compra ? `
+                        <div class="mt-2 bg-gray-50 border border-gray-100 p-2 rounded text-[10px] text-gray-500">
+                            <p><span class="font-bold text-gray-700">Última Compra:</span> ${formatDate(item.ultima_data_compra)}</p>
+                            <p><span class="font-bold text-gray-700">Fornecedor:</span> ${item.ultimo_fornecedor}</p>
+                            <p><span class="font-bold text-gray-700">Qtd Comprada:</span> +${item.ultima_qtd_compra}</p>
+                        </div>
+                    ` : ''}
+                </div>
+                <div class="mt-4 flex gap-2">
+                    <button onclick="openCompraModal('${item.__backendId}')" class="flex-1 bg-blue-50 text-blue-600 py-1.5 text-xs rounded-lg font-bold hover:bg-blue-100 transition"><i data-lucide="shopping-cart" class="w-3 h-3 inline"></i> Registrar Compra</button>
+                    <button onclick="updateQty('${item.__backendId}', -1)" class="px-3 bg-gray-100 py-1.5 rounded-lg font-bold hover:bg-gray-200">-</button>
+                    <button onclick="deleteItem('${item.__backendId}')" class="p-1.5 text-red-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </div>
             </div>`).join('');
+        try { lucide.createIcons(); } catch(e){}
+    }
+
+    // ABA ANIVERSARIANTES
+    function renderAniversariantes() {
+        const currentMonth = new Date().getMonth() + 1; // 1 a 12
+        const clientes = allData.filter(d => d.type === 'cliente' && d.data_nascimento);
+        
+        const aniversariantes = clientes.filter(c => {
+            try {
+                const month = parseInt(c.data_nascimento.split('-')[1], 10);
+                return month === currentMonth;
+            } catch(e) { return false; }
+        }).sort((a, b) => parseInt(a.data_nascimento.split('-')[2]) - parseInt(b.data_nascimento.split('-')[2]));
+
+        document.getElementById('aniversariantes-list').innerHTML = aniversariantes.length === 0 ? '<p class="text-gray-400 p-4">Nenhum aniversariante neste mês.</p>' : aniversariantes.map(item => {
+            const day = item.data_nascimento.split('-')[2];
+            const msg = encodeURIComponent(`Olá ${item.nome}! A equipe do Salão deseja-lhe um Feliz Aniversário! 🎉 Temos um presente especial para si, agende o seu horário!`);
+            return `
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-between shadow-sm">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-pink-100 text-pink-600 rounded-full flex flex-col justify-center items-center font-bold">
+                        <span class="text-[10px] uppercase leading-none">Dia</span>
+                        <span class="text-lg leading-none">${day}</span>
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-gray-800">${item.nome}</h4>
+                        <p class="text-xs text-gray-500"><i data-lucide="phone" class="w-3 h-3 inline"></i> ${item.telefone}</p>
+                    </div>
+                </div>
+                <button onclick="window.open('https://wa.me/55${item.telefone.replace(/\D/g, '')}?text=${msg}', '_blank')" class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition" title="Enviar Parabéns no WhatsApp">
+                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                </button>
+            </div>
+        `}).join('');
         try { lucide.createIcons(); } catch(e){}
     }
 
@@ -917,10 +988,23 @@
             const isPago = item.status_conta === 'pago'; 
             const isReceber = item.tipo_conta === 'receber';
             
-            // Links para Anexos (se existirem)
+            // Links para Anexos (se existirem multi-uploads)
             let anexosHtml = '';
-            if (item.boleto_url) anexosHtml += `<a href="${item.boleto_url}" target="_blank" class="text-xs text-blue-500 hover:underline flex items-center gap-1"><i data-lucide="file-text" class="w-3 h-3"></i> Boleto/NF</a>`;
-            if (item.comprovante_url) anexosHtml += `<a href="${item.comprovante_url}" target="_blank" class="text-xs text-green-500 hover:underline flex items-center gap-1"><i data-lucide="check-square" class="w-3 h-3"></i> Comprovante</a>`;
+            if (item.boletos_urls && item.boletos_urls.length > 0) {
+                item.boletos_urls.forEach((url, i) => {
+                    anexosHtml += `<a href="${url}" target="_blank" class="text-xs text-blue-500 hover:underline flex items-center gap-1 bg-blue-50 px-2 py-1 rounded"><i data-lucide="file-text" class="w-3 h-3"></i> Boleto/NF ${i+1}</a>`;
+                });
+            } else if (item.boleto_url) {
+                anexosHtml += `<a href="${item.boleto_url}" target="_blank" class="text-xs text-blue-500 hover:underline flex items-center gap-1 bg-blue-50 px-2 py-1 rounded"><i data-lucide="file-text" class="w-3 h-3"></i> Boleto/NF</a>`;
+            }
+
+            if (item.comprovantes_urls && item.comprovantes_urls.length > 0) {
+                item.comprovantes_urls.forEach((url, i) => {
+                    anexosHtml += `<a href="${url}" target="_blank" class="text-xs text-green-500 hover:underline flex items-center gap-1 bg-green-50 px-2 py-1 rounded"><i data-lucide="check-square" class="w-3 h-3"></i> Comprovante ${i+1}</a>`;
+                });
+            } else if (item.comprovante_url) {
+                anexosHtml += `<a href="${item.comprovante_url}" target="_blank" class="text-xs text-green-500 hover:underline flex items-center gap-1 bg-green-50 px-2 py-1 rounded"><i data-lucide="check-square" class="w-3 h-3"></i> Comprovante</a>`;
+            }
             
             let desc = item.descricao;
             if(!isReceber && item.fornecedor) desc = `[${item.fornecedor}] ${desc}`;
@@ -935,7 +1019,7 @@
                     <div>
                         <h4 class="font-bold text-sm text-gray-800 ${isPago?'line-through':''}">${desc}</h4>
                         <p class="text-xs text-gray-500">Vencimento: ${formatDate(item.vencimento)} | Método: <span class="capitalize font-semibold">${item.metodo||'Não inf.'}</span></p>
-                        ${anexosHtml ? `<div class="flex gap-3 mt-1.5">${anexosHtml}</div>` : ''}
+                        ${anexosHtml ? `<div class="flex flex-wrap gap-2 mt-2">${anexosHtml}</div>` : ''}
                     </div>
                 </div>
                 <div class="flex items-center gap-3 self-end md:self-auto">
@@ -974,6 +1058,49 @@
             showToast("Erro no anexo. Ative o Storage no Firebase.", "error");
             return null;
         }
+    }
+
+    async function uploadMultiple(files, folder) {
+        const urls = [];
+        if(!files || files.length === 0) return urls;
+        for(let i=0; i<files.length; i++) {
+            const url = await uploadToStorage(files[i], folder);
+            if(url) urls.push(url);
+        }
+        return urls;
+    }
+
+    // Gerador de Número de Requisição
+    window.generateRequisicao = function(offset = 0) {
+        const currentYear = new Date().getFullYear();
+        const ags = allData.filter(d => d.type === 'agendamento' && d.requisicao && d.requisicao.endsWith(`/${currentYear}`));
+        let max = 0;
+        ags.forEach(a => {
+            const seq = parseInt(a.requisicao.split('/')[0]);
+            if(seq > max) max = seq;
+        });
+        max += 1 + offset;
+        return `${String(max).padStart(4, '0')}/${currentYear}`;
+    };
+
+    window.openCompraModal = function(id) {
+        const item = allData.find(d => d.__backendId === id);
+        currentFormType = 'registrar_compra';
+        currentCheckoutId = id; // reutilizamos a variável
+        const forns = allData.filter(d => d.type === 'fornecedor');
+        
+        document.getElementById('modal-title').textContent = `Registrar Compra: ${item.item_name}`;
+        document.getElementById('modal-form').innerHTML = `
+            <select name="fornecedor" required class="w-full p-3 border rounded-xl focus:ring-blue-500 bg-white">
+                <option value="">-- Selecione o Fornecedor --</option>
+                ${forns.map(f => `<option value="${f.nome}">${f.nome}</option>`).join('')}
+            </select>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-gray-500">Data da Compra</label><input type="date" name="data_compra" required class="w-full p-3 border rounded-xl"></div>
+                <div><label class="text-xs font-bold text-gray-500">Qtd Comprada</label><input type="number" name="quantidade_comprada" required min="1" class="w-full p-3 border rounded-xl"></div>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Lançar Compra</button>`;
+        document.getElementById('modal-overlay').classList.remove('hidden');
     }
 
     // --- FORMULÁRIOS ADMIN MODAL ---
@@ -1021,14 +1148,15 @@
         } else if (type === 'profissional') {
             title.textContent = 'Novo Profissional';
             const servs = allData.filter(d => d.type === 'servico');
-            const sHtml = servs.map(s => `<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="servicos_hab" value="${s.__backendId}"> ${s.name}</label>`).join('');
+            // Alterado para listar os serviços com melhor formatação (flex col para não cortar texto)
+            const sHtml = servs.map(s => `<label class="flex items-center gap-3 p-2 bg-white border border-gray-100 rounded-lg hover:bg-purple-50 cursor-pointer transition"><input type="checkbox" name="servicos_hab" value="${s.__backendId}" class="w-4 h-4 text-purple-600 rounded"> <span class="text-sm font-medium text-gray-700">${s.name}</span></label>`).join('');
             form.innerHTML = `
                 <input name="name" placeholder="Nome do Profissional" required class="w-full p-3 border rounded-xl focus:ring-[#c41e3a]">
                 <input name="cargo" placeholder="Cargo/Especialidade (ex: Barbeiro, Manicure)" class="w-full p-3 border rounded-xl focus:ring-[#c41e3a] mb-3">
                 <div class="mt-3">
-                    <label class="text-xs font-bold text-gray-500 mb-2 block">Serviços que realiza (Obrigatório para o Agendamento Online):</label>
-                    <div class="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto p-2 border border-gray-200 rounded-xl bg-gray-50">
-                        ${sHtml || '<p class="text-xs text-gray-400 col-span-2">Cadastre serviços primeiro na aba Serviços.</p>'}
+                    <label class="text-xs font-bold text-gray-500 mb-2 block">Serviços que realiza (Obrigatório selecionar para Agendamento):</label>
+                    <div class="flex flex-col gap-2 max-h-48 overflow-y-auto p-3 border border-gray-200 rounded-xl bg-gray-50">
+                        ${sHtml || '<p class="text-sm text-red-500 font-bold">Cadastre serviços primeiro na aba Serviços.</p>'}
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-purple-600 text-white p-3 rounded-xl font-bold mt-4">Salvar Equipe</button>`;
@@ -1041,6 +1169,7 @@
                     <input name="telefone" placeholder="Telefone" required class="w-full p-3 border rounded-xl focus:ring-[#c41e3a]">
                 </div>
                 <input name="email" type="email" placeholder="E-mail" class="w-full p-3 border rounded-xl focus:ring-[#c41e3a]">
+                <textarea name="produtos" placeholder="Produtos que fornece (ex: Tintas, Shampoos...)" class="w-full p-3 border rounded-xl focus:ring-[#c41e3a] h-20"></textarea>
                 <button type="submit" class="w-full bg-indigo-600 text-white p-3 rounded-xl font-bold">Salvar Fornecedor</button>`;
         } else if (type === 'servico') {
             title.textContent = 'Novo Serviço';
@@ -1088,22 +1217,29 @@
                     <input name="nf" placeholder="Nº da Nota Fiscal" class="w-full p-3 border rounded-xl focus:ring-red-500">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
-                    <div><label class="text-xs font-bold text-gray-500">Valor a Pagar (R$)</label><input type="number" name="valor" step="0.01" required class="w-full p-3 border rounded-xl focus:ring-red-500"></div>
-                    <div><label class="text-xs font-bold text-gray-500">Vencimento</label><input type="date" name="vencimento" required class="w-full p-3 border rounded-xl focus:ring-red-500"></div>
+                    <div><label class="text-xs font-bold text-gray-500">Valor Total (R$)</label><input type="number" name="valor" step="0.01" required class="w-full p-3 border rounded-xl focus:ring-red-500"></div>
+                    <div><label class="text-xs font-bold text-gray-500">1º Vencimento</label><input type="date" name="vencimento" required class="w-full p-3 border rounded-xl focus:ring-red-500"></div>
                 </div>
-                <div><label class="text-xs font-bold text-gray-500">Método de Pagamento</label>
-                    <select name="metodo" class="w-full p-3 border rounded-xl focus:ring-red-500 bg-white">
-                        <option value="boleto">Boleto</option><option value="transferencia">Transferência/PIX</option><option value="dinheiro">Dinheiro</option>
-                    </select>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-xs font-bold text-gray-500">Método de Pagamento</label>
+                        <select name="metodo" class="w-full p-3 border rounded-xl focus:ring-red-500 bg-white">
+                            <option value="boleto">Boleto</option><option value="transferencia">Transferência/PIX</option><option value="dinheiro">Dinheiro</option><option value="credito">Cartão Crédito</option>
+                        </select>
+                    </div>
+                    <div><label class="text-xs font-bold text-gray-500">Parcelamento</label>
+                        <select name="parcelas" class="w-full p-3 border rounded-xl focus:ring-red-500 bg-white">
+                            <option value="1">1x (À vista)</option><option value="2">2x</option><option value="3">3x</option><option value="4">4x</option><option value="5">5x</option><option value="6">6x</option><option value="10">10x</option><option value="12">12x</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="border border-dashed border-gray-300 p-3 rounded-xl bg-gray-50 space-y-3">
                     <div>
-                        <label class="text-xs font-bold text-gray-500 flex items-center gap-1"><i data-lucide="upload-cloud" class="w-3 h-3"></i> Upload Boleto / NF</label>
-                        <input type="file" id="file-boleto" accept=".pdf,image/*" class="w-full text-xs mt-1">
+                        <label class="text-xs font-bold text-gray-500 flex items-center gap-1"><i data-lucide="upload-cloud" class="w-3 h-3"></i> Upload Boletos / NFs (Pode enviar vários)</label>
+                        <input type="file" id="file-boleto" accept=".pdf,image/*" multiple class="w-full text-xs mt-1">
                     </div>
                     <div>
-                        <label class="text-xs font-bold text-gray-500 flex items-center gap-1"><i data-lucide="upload-cloud" class="w-3 h-3"></i> Comprovante Pagamento</label>
-                        <input type="file" id="file-comprovante" accept=".pdf,image/*" class="w-full text-xs mt-1">
+                        <label class="text-xs font-bold text-gray-500 flex items-center gap-1"><i data-lucide="upload-cloud" class="w-3 h-3"></i> Comprovantes (Pode enviar vários)</label>
+                        <input type="file" id="file-comprovante" accept=".pdf,image/*" multiple class="w-full text-xs mt-1">
                     </div>
                 </div>
                 <button type="submit" class="w-full bg-red-600 text-white p-3 rounded-xl font-bold">Registrar Despesa</button>`;
@@ -1167,6 +1303,24 @@
         const fd = new FormData(e.target);
         if (currentFormType === 'checkout') { return handleCheckoutSubmit(fd); }
         
+        if (currentFormType === 'registrar_compra') {
+            const item = allData.find(d => d.__backendId === currentCheckoutId);
+            const qtd = parseInt(fd.get('quantidade_comprada'));
+            const newTotal = parseInt(item.quantity || 0) + qtd;
+            
+            setLoading(true, "A registar compra...");
+            try {
+                await db.collection(COLLECTION_NAME).doc(currentCheckoutId).update({
+                    quantity: newTotal,
+                    ultimo_fornecedor: fd.get('fornecedor'),
+                    ultima_data_compra: fd.get('data_compra'),
+                    ultima_qtd_compra: qtd
+                });
+                closeModal(); showToast("Estoque atualizado!", "success");
+            } catch(e) { showToast("Erro", "error"); } finally { setLoading(false); }
+            return;
+        }
+
         let actualType = currentFormType;
         if(currentFormType === 'receita') { actualType = 'conta'; fd.set('tipo_conta', 'receber'); fd.set('status_conta', 'pendente'); }
         if(currentFormType === 'despesa') { actualType = 'conta'; fd.set('tipo_conta', 'pagar'); fd.set('status_conta', 'pendente'); }
@@ -1180,6 +1334,7 @@
 
         if(currentFormType === 'agendamento') { 
             data.origem = 'Manual Admin'; data.status = 'pendente'; 
+            data.requisicao = generateRequisicao();
             const phone = fd.get('phone').replace(/\D/g, ''); fd.set('phone', phone);
             
             const clienteExists = allData.find(d => d.type === 'cliente' && d.nome === fd.get('client_name'));
@@ -1198,20 +1353,42 @@
 
         try { 
             if (currentFormType === 'despesa') {
-                const bolFile = document.getElementById('file-boleto').files[0];
-                const compFile = document.getElementById('file-comprovante').files[0];
+                const bolFiles = document.getElementById('file-boleto').files;
+                const compFiles = document.getElementById('file-comprovante').files;
                 
-                if (bolFile) {
-                    const bolUrl = await uploadToStorage(bolFile, 'boletos');
-                    if(bolUrl) data.boleto_url = bolUrl;
+                const bolUrls = await uploadMultiple(bolFiles, 'boletos');
+                const compUrls = await uploadMultiple(compFiles, 'comprovantes');
+                
+                if(bolUrls.length > 0) data.boletos_urls = bolUrls;
+                if(compUrls.length > 0) {
+                    data.comprovantes_urls = compUrls;
+                    data.status_conta = 'pago'; 
                 }
-                if (compFile) {
-                    const compUrl = await uploadToStorage(compFile, 'comprovantes');
-                    if(compUrl) {
-                        data.comprovante_url = compUrl;
-                        data.status_conta = 'pago'; 
+
+                // Lógica de Parcelamento
+                const parcelas = parseInt(fd.get('parcelas') || 1);
+                const valorTotal = parseFloat(fd.get('valor'));
+                const valorParcela = valorTotal / parcelas;
+                const baseDate = new Date(fd.get('vencimento') + 'T12:00:00'); // Evita bug de timezone
+
+                for (let i = 0; i < parcelas; i++) {
+                    const parcelaData = { ...data };
+                    parcelaData.valor = valorParcela;
+                    parcelaData.parcela_atual = i + 1;
+                    parcelaData.total_parcelas = parcelas;
+                    
+                    if (parcelas > 1) {
+                        parcelaData.descricao += ` (Parcela ${i + 1}/${parcelas})`;
+                        const vDate = new Date(baseDate);
+                        vDate.setMonth(vDate.getMonth() + i);
+                        parcelaData.vencimento = vDate.toISOString().split('T')[0];
                     }
+                    await db.collection(COLLECTION_NAME).add(parcelaData);
                 }
+                
+                showToast("Despesa salva com sucesso!", "success");
+                setLoading(false);
+                return; // Já salvou, sai da função
             }
 
             await db.collection(COLLECTION_NAME).add(data); 
