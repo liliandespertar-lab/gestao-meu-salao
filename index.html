@@ -14,6 +14,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-storage-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.10.0/firebase-auth-compat.js"></script>
 
     <style>
         * { font-family: 'DM Sans', sans-serif; }
@@ -40,22 +41,81 @@
             <div class="w-16 h-16 bg-red-50 text-[#c41e3a] rounded-full flex items-center justify-center mx-auto mb-6">
                 <i data-lucide="lock" class="w-8 h-8"></i>
             </div>
-            <h1 class="text-2xl font-bold text-gray-800 mb-2">Acesso Restrito</h1>
-            <p class="text-sm text-gray-500 mb-8">Introduza as suas credenciais para gerir o salão.</p>
             
-            <form onsubmit="handleLogin(event)" class="space-y-4 text-left">
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Utilizador</label>
-                    <input type="text" id="login-user" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+            <!-- CONTAINER: LOGIN -->
+            <div id="login-container">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">Acesso Restrito</h1>
+                <p class="text-sm text-gray-500 mb-8">Introduza as suas credenciais para gerir o salão.</p>
+                
+                <form onsubmit="handleLogin(event)" class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">E-mail (ou Utilizador)</label>
+                        <input type="text" id="login-email" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Palavra-passe</label>
+                        <input type="password" id="login-pass" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+                    </div>
+                    <button type="submit" class="w-full bg-[#c41e3a] text-white p-3.5 rounded-xl font-bold text-lg hover:bg-[#a01a30] transition mt-2">
+                        Entrar no Sistema
+                    </button>
+                </form>
+                <div class="mt-4 text-sm">
+                    <button type="button" onclick="toggleAuthView('forgot')" class="text-[#c41e3a] hover:underline font-medium">Esqueceu a senha?</button>
                 </div>
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-1">Palavra-passe</label>
-                    <input type="password" id="login-pass" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+                <div class="mt-4 pt-4 border-t border-gray-100 text-sm">
+                    <span class="text-gray-500">Não tem conta?</span>
+                    <button type="button" onclick="toggleAuthView('register')" class="text-[#c41e3a] hover:underline font-bold ml-1">Cadastre-se</button>
                 </div>
-                <button type="submit" class="w-full bg-[#c41e3a] text-white p-3.5 rounded-xl font-bold text-lg hover:bg-[#a01a30] transition mt-2">
-                    Entrar no Sistema
-                </button>
-            </form>
+            </div>
+
+            <!-- CONTAINER: REGISTER -->
+            <div id="register-container" class="hidden">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">Criar Conta</h1>
+                <p class="text-sm text-gray-500 mb-8">Registe-se para aceder ao painel de gestão.</p>
+                <form onsubmit="handleRegister(event)" class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
+                        <input type="email" id="reg-email" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Palavra-passe</label>
+                        <input type="password" id="reg-pass" required minlength="6" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50" placeholder="Mínimo de 6 caracteres">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">Confirmar Palavra-passe</label>
+                        <input type="password" id="reg-conf" required minlength="6" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+                    </div>
+                    <button type="submit" class="w-full bg-[#c41e3a] text-white p-3.5 rounded-xl font-bold text-lg hover:bg-[#a01a30] transition mt-2">
+                        Criar Conta
+                    </button>
+                </form>
+                <div class="mt-4 pt-4 border-t border-gray-100 text-sm">
+                    <span class="text-gray-500">Já tem uma conta?</span>
+                    <button type="button" onclick="toggleAuthView('login')" class="text-[#c41e3a] hover:underline font-bold ml-1">Fazer Login</button>
+                </div>
+            </div>
+
+            <!-- CONTAINER: FORGOT PASSWORD -->
+            <div id="forgot-container" class="hidden">
+                <h1 class="text-2xl font-bold text-gray-800 mb-2">Recuperar Senha</h1>
+                <p class="text-sm text-gray-500 mb-8">Introduza o seu e-mail para receber um link de recuperação.</p>
+                <form onsubmit="handleForgot(event)" class="space-y-4 text-left">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">E-mail da sua conta</label>
+                        <input type="email" id="forgot-email" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
+                    </div>
+                    <button type="submit" class="w-full bg-[#c41e3a] text-white p-3.5 rounded-xl font-bold text-lg hover:bg-[#a01a30] transition mt-2">
+                        Enviar Link
+                    </button>
+                </form>
+                <div class="mt-4 pt-4 border-t border-gray-100 text-sm">
+                    <button type="button" onclick="toggleAuthView('login')" class="text-gray-500 hover:text-gray-800 font-medium flex items-center justify-center w-full gap-1">
+                        <i data-lucide="arrow-left" class="w-4 h-4"></i> Voltar ao Login
+                    </button>
+                </div>
+            </div>
+
         </div>
     </div>
 
@@ -483,6 +543,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const storage = firebase.storage(); 
+    const auth = firebase.auth();
     const COLLECTION_NAME = "salao_data";
 
     let allData = [];
@@ -718,18 +779,94 @@
     }
 
     // --- SISTEMA DE LOGIN E ADMIN ---
+    function toggleAuthView(view) {
+        document.getElementById('login-container').classList.add('hidden');
+        document.getElementById('register-container').classList.add('hidden');
+        document.getElementById('forgot-container').classList.add('hidden');
+        document.getElementById(view + '-container').classList.remove('hidden');
+    }
+
     async function handleLogin(e) {
         e.preventDefault();
-        if (document.getElementById('login-user').value === 'admin' && document.getElementById('login-pass').value === 'admin123') {
+        const email = document.getElementById('login-email').value;
+        const pass = document.getElementById('login-pass').value;
+        
+        setLoading(true, "A autenticar...");
+        try {
+            await auth.signInWithEmailAndPassword(email, pass);
             sessionStorage.setItem('admin_logged_in', 'true');
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('admin-view').classList.remove('hidden');
             renderAllAdmin();
-            switchTabAdmin('dashboard'); // Entrar no dashboard
-        } else { showToast("Credenciais incorretas", "error"); }
+            switchTabAdmin('dashboard');
+        } catch (error) {
+            // Conta Admin nativa de segurança
+            if ((email === 'admin' || email === 'admin@gestao.com') && pass === 'admin123') {
+                sessionStorage.setItem('admin_logged_in', 'true');
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                renderAllAdmin();
+                switchTabAdmin('dashboard');
+            } else {
+                showToast("Credenciais incorretas ou conta não existe.", "error");
+            }
+        } finally {
+            setLoading(false);
+        }
     }
 
-    function logout() { sessionStorage.removeItem('admin_logged_in'); window.location.reload(); }
+    async function handleRegister(e) {
+        e.preventDefault();
+        const email = document.getElementById('reg-email').value;
+        const pass = document.getElementById('reg-pass').value;
+        const conf = document.getElementById('reg-conf').value;
+
+        if (pass !== conf) {
+            showToast("As senhas não coincidem.", "error");
+            return;
+        }
+
+        setLoading(true, "A criar conta...");
+        try {
+            await auth.createUserWithEmailAndPassword(email, pass);
+            showToast("Conta criada com sucesso!", "success");
+            sessionStorage.setItem('admin_logged_in', 'true');
+            document.getElementById('login-view').classList.add('hidden');
+            document.getElementById('admin-view').classList.remove('hidden');
+            renderAllAdmin();
+            switchTabAdmin('dashboard');
+        } catch (error) {
+            console.error(error);
+            showToast("Erro: O serviço de Autenticação não está ativo no Firebase Console.", "error");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    async function handleForgot(e) {
+        e.preventDefault();
+        const email = document.getElementById('forgot-email').value;
+        setLoading(true, "A enviar e-mail...");
+        try {
+            await auth.sendPasswordResetEmail(email);
+            showToast("E-mail de recuperação enviado!", "success");
+            toggleAuthView('login');
+        } catch (error) {
+            showToast("Erro: Verifique se o e-mail está correto.", "error");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function logout() { 
+        auth.signOut().then(() => {
+            sessionStorage.removeItem('admin_logged_in'); 
+            window.location.reload(); 
+        }).catch(() => {
+            sessionStorage.removeItem('admin_logged_in'); 
+            window.location.reload(); 
+        });
+    }
 
     function copyClientLink() {
         const link = window.location.origin + window.location.pathname + '?view=cliente';
