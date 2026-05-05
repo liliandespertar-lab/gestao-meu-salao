@@ -23,6 +23,7 @@
         .hidden { display: none !important; }
         
         .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid #fff; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        .spinner-small { border: 2px solid rgba(255,255,255,0.3); border-top: 2px solid #fff; width: 16px; height: 16px; animation: spin 1s linear infinite; border-radius: 50%; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
@@ -177,6 +178,9 @@
         <nav class="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
             <div class="max-w-7xl mx-auto flex overflow-x-auto no-scrollbar">
                 <button onclick="switchTabAdmin('dashboard')" id="tab-dashboard" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</button>
+                <!-- NOVA ABA: IA -->
+                <button onclick="switchTabAdmin('ia')" id="tab-ia" class="px-5 py-4 text-sm font-medium text-purple-600 hover:text-purple-800 flex items-center gap-2 whitespace-nowrap border-b-2 border-transparent"><i data-lucide="bot" class="w-4 h-4"></i> Assistente IA</button>
+                
                 <button onclick="switchTabAdmin('agendamentos')" id="tab-agendamentos" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="calendar-days" class="w-4 h-4"></i> Agenda</button>
                 <button onclick="switchTabAdmin('clientes')" id="tab-clientes" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="users" class="w-4 h-4"></i> Clientes</button>
                 <button onclick="switchTabAdmin('equipe')" id="tab-equipe" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="contact" class="w-4 h-4"></i> Equipe</button>
@@ -261,6 +265,29 @@
                             </button>
                         </div>
                     </div>
+                </div>
+            </section>
+
+            <!-- ABA: INTELIGÊNCIA ARTIFICIAL -->
+            <section id="section-ia" class="fade-in hidden flex-col h-[calc(100vh-200px)] max-h-[800px]">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2"><i data-lucide="bot" class="text-purple-600"></i> Assistente de Gestão IA</h2>
+                </div>
+                
+                <div class="bg-purple-50 border border-purple-100 p-4 rounded-xl shadow-sm flex items-start gap-3 mb-4">
+                    <div class="p-2 bg-purple-600 text-white rounded-lg flex-shrink-0"><i data-lucide="sparkles" class="w-5 h-5"></i></div>
+                    <p class="text-purple-900 text-sm">Olá! Sou a IA integrada do Gestão Beauty. Tenho acesso em tempo real à sua agenda, estoque e finanças. Pode perguntar-me coisas como: <b>"Quais produtos preciso comprar?"</b>, <b>"Faça um resumo do meu financeiro hoje"</b> ou <b>"Crie uma mensagem para os aniversariantes do mês"</b>.</p>
+                </div>
+                
+                <div id="ia-chat-history" class="flex-1 bg-white border border-gray-200 rounded-xl p-4 overflow-y-auto space-y-4 shadow-sm mb-4">
+                    <!-- Mensagens do chat aparecem aqui -->
+                </div>
+                
+                <div class="bg-white border border-gray-200 rounded-xl p-3 flex gap-2 shadow-sm shrink-0">
+                    <input type="text" id="ia-input" placeholder="Pergunte à IA do Gestão Beauty..." class="flex-1 p-2 outline-none text-sm text-gray-700" onkeypress="if(event.key === 'Enter') sendToIA()">
+                    <button onclick="sendToIA()" id="ia-btn-send" class="bg-purple-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-purple-700 transition flex items-center gap-2 shadow">
+                        <i data-lucide="send" class="w-4 h-4"></i> Enviar
+                    </button>
                 </div>
             </section>
 
@@ -714,19 +741,33 @@
     }
 
     function switchTabAdmin(tab) {
-        const sections = ['dashboard', 'agendamentos', 'clientes', 'equipe', 'servicos', 'estoque', 'financeiro', 'fornecedores', 'aniversariantes'];
+        const sections = ['dashboard', 'ia', 'agendamentos', 'clientes', 'equipe', 'servicos', 'estoque', 'financeiro', 'fornecedores', 'aniversariantes'];
+        
         sections.forEach(s => {
-            document.getElementById(`section-${s}`).classList.toggle('hidden', s !== tab);
+            const sectionEl = document.getElementById(`section-${s}`);
+            if(sectionEl) {
+                if(s === tab) {
+                    sectionEl.classList.remove('hidden');
+                    sectionEl.classList.add('flex'); // Especial para aba IA que usa flex-col
+                } else {
+                    sectionEl.classList.add('hidden');
+                    sectionEl.classList.remove('flex');
+                }
+            }
+
             const btn = document.getElementById(`tab-${s}`);
             if(btn) {
-                // Remove estilos ativos de todos
-                btn.classList.remove('tab-active');
-                btn.classList.add('text-gray-500');
-                
-                // Se for a aba selecionada, adiciona classe de ativo
-                if(s === tab) {
-                    btn.classList.add('tab-active');
-                    btn.classList.remove('text-gray-500');
+                // Remove estilos ativos
+                btn.classList.remove('border-b-2', 'border-[#c41e3a]', 'border-purple-600', 'text-[#c41e3a]', 'text-purple-800');
+                if(s === 'ia') {
+                    btn.classList.add('text-purple-600');
+                    if(s === tab) btn.classList.add('border-b-2', 'border-purple-600', 'text-purple-800');
+                } else {
+                    btn.classList.add('text-gray-500');
+                    if(s === tab) {
+                        btn.classList.remove('text-gray-500');
+                        btn.classList.add('text-[#c41e3a]', 'border-b-2', 'border-[#c41e3a]');
+                    }
                 }
             }
         });
@@ -743,6 +784,98 @@
         renderFinanceiro(); 
         renderFornecedores(); 
         renderAniversariantes();
+    }
+
+    // =========================================================================
+    // LÓGICA DO ASSISTENTE DE IA (GEMINI API)
+    // =========================================================================
+    const apiKey = ""; // A chave é injetada automaticamente pelo ambiente
+    
+    window.sendToIA = async function() {
+        const inputEl = document.getElementById('ia-input');
+        const userText = inputEl.value.trim();
+        if(!userText) return;
+        
+        appendChatMessage('user', userText);
+        inputEl.value = '';
+        
+        const btn = document.getElementById('ia-btn-send');
+        btn.disabled = true;
+        btn.innerHTML = '<div class="spinner-small"></div> processando...';
+        
+        try {
+            // Construir o Contexto (Cruzamento de Dados Reais do Sistema)
+            const today = new Date().toISOString().split('T')[0];
+            const currentMonth = new Date().getMonth() + 1;
+            
+            const agendamentosHoje = allData.filter(d => d.type === 'agendamento' && d.date === today);
+            const estoqueBaixo = allData.filter(d => d.type === 'estoque' && Number(d.quantity) <= Number(d.min_stock));
+            const contasReceber = allData.filter(d => d.type === 'conta' && d.tipo_conta === 'receber' && d.status_conta !== 'pago');
+            const contasPagar = allData.filter(d => d.type === 'conta' && d.tipo_conta === 'pagar' && d.status_conta !== 'pago');
+            
+            const clientes = allData.filter(d => d.type === 'cliente' && d.data_nascimento);
+            const aniversariantes = clientes.filter(c => {
+                try { return parseInt(c.data_nascimento.split('-')[1], 10) === currentMonth; } catch(e) { return false; }
+            });
+
+            // Resumo injetado na IA invisível para o usuário
+            const contextSummary = `
+            DADOS ATUAIS DO SISTEMA "GESTÃO BEAUTY":
+            - Data de hoje: ${today}
+            - Agendamentos para hoje: ${agendamentosHoje.length} consultas (${agendamentosHoje.map(a=>a.client_name + ' às ' + a.time).join(', ')}).
+            - Produtos com Estoque Baixo/Esgotado: ${estoqueBaixo.map(e => e.item_name + ' (Qtd: ' + e.quantity + ')').join(', ') || 'Nenhum'}.
+            - Total de Contas a Receber (Fiados/Pendentes): R$ ${contasReceber.reduce((a,b)=>a+Number(b.valor),0).toFixed(2)}.
+            - Total de Contas a Pagar (Despesas): R$ ${contasPagar.reduce((a,b)=>a+Number(b.valor),0).toFixed(2)}.
+            - Aniversariantes deste mês: ${aniversariantes.length} clientes (${aniversariantes.map(a=>a.nome).join(', ')}).
+            `;
+
+            const systemInstruction = "Você é a IA assistente integrada ao software 'Gestão Beauty'. O seu papel é analisar os dados financeiros, de estoque, agenda e clientes para ajudar o gestor do salão a faturar mais e organizar-se. Responda em Português de Portugal. Seja conciso e vá direto ao ponto. Responda com base nos 'DADOS ATUAIS DO SISTEMA' fornecidos. Use tags HTML simples (<b>, <br>, <ul>, <li>) para formatar a resposta bonitinha dentro da div do chat.";
+
+            const payload = {
+                contents: [{ parts: [{ text: `[CONTEXTO INTERNO DA BASE DE DADOS:\n${contextSummary}]\n\nPERGUNTA DO GESTOR: ${userText}` }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] }
+            };
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            const aiText = result.candidates?.[0]?.content?.parts?.[0]?.text || "Desculpe, ocorreu um erro ao analisar os dados do salão.";
+            
+            appendChatMessage('ai', aiText);
+        } catch(e) {
+            console.error(e);
+            appendChatMessage('ai', '<span class="text-red-500">Erro de conexão com o servidor de Inteligência Artificial. Verifique a internet ou tente mais tarde.</span>');
+        } finally {
+            btn.disabled = false;
+            btn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i> Enviar';
+            lucide.createIcons();
+        }
+    }
+
+    function appendChatMessage(sender, text) {
+        const history = document.getElementById('ia-chat-history');
+        const div = document.createElement('div');
+        
+        if(sender === 'user') {
+            div.className = "flex justify-end fade-in";
+            div.innerHTML = `<div class="bg-purple-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5 text-sm max-w-[85%] shadow-sm">${text}</div>`;
+        } else {
+            div.className = "flex justify-start fade-in";
+            // Limpa Markdown básico para HTML (negrito)
+            let formattedText = text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>').replace(/\*(.*?)\*/g, '<i>$1</i>');
+            div.innerHTML = `
+                <div class="flex gap-3 max-w-[95%]">
+                    <div class="w-8 h-8 bg-purple-100 text-purple-600 rounded-full flex-shrink-0 flex items-center justify-center shadow-sm"><i data-lucide="sparkles" class="w-4 h-4"></i></div>
+                    <div class="bg-gray-100 border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm px-4 py-3 text-sm shadow-sm leading-relaxed">${formattedText}</div>
+                </div>`;
+        }
+        history.appendChild(div);
+        history.scrollTop = history.scrollHeight;
+        try { lucide.createIcons(); } catch(e){}
     }
 
     // ABA DASHBOARD ESTATÍSTICAS
