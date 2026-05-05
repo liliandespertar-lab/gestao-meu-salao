@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestão Pro - Salão & Estética</title>
+    <title>Salão Unificado - Gestão Pro</title>
     
     <!-- Bibliotecas de UI -->
     <script src="https://cdn.tailwindcss.com/3.4.17"></script>
@@ -17,7 +17,7 @@
 
     <style>
         * { font-family: 'DM Sans', sans-serif; }
-        .tab-active { border-bottom: 3px solid #c41e3a; color: #c41e3a; }
+        .tab-active { border-bottom-width: 3px; border-color: #c41e3a; color: #c41e3a; }
         .fade-in { animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .hidden { display: none !important; }
@@ -26,7 +26,7 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="h-full bg-[#f8fafc]">
+<body class="h-full bg-gradient-to-br from-[#f8f6f3] to-[#ede9e6] overflow-auto">
     <!-- Ecrã de Carregamento -->
     <div id="loader" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white">
         <div class="spinner mb-4"></div>
@@ -59,8 +59,8 @@
     </div>
 
     <!-- ================= VIEW DO CLIENTE (PÚBLICA) ================= -->
-    <div id="client-view" class="h-full flex flex-col hidden fade-in overflow-y-auto bg-[#f0f4f0]">
-        <header class="bg-[#c41e3a] text-white text-center py-6 shadow-md sticky top-0 z-10">
+    <div id="client-view" class="h-full flex flex-col hidden fade-in overflow-y-auto bg-[#f8fafc]">
+        <header class="bg-gradient-to-r from-[#c41e3a] to-[#a01729] text-white text-center py-6 shadow-md sticky top-0 z-10">
             <h1 class="text-2xl font-bold tracking-tight">Agendamento Online</h1>
             <p class="text-sm text-[#f4a3ac] mt-1">Agende o seu horário de forma prática</p>
         </header>
@@ -78,7 +78,7 @@
 
                 <!-- 1. Data -->
                 <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200 mb-4">
-                    <label class="block text-sm font-bold text-gray-700 mb-3">1. Selecione a data desejada</label>
+                    <label class="block text-sm font-bold text-gray-700 mb-3"><i data-lucide="calendar" class="w-4 h-4 text-[#c41e3a] inline mr-2"></i> 1. Selecione a data desejada</label>
                     <input id="public-date-select" type="date" onchange="handleClientDateChange()" class="w-full border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
                 </div>
 
@@ -90,7 +90,7 @@
 
                     <!-- Adicionar novo serviço -->
                     <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mb-6">
-                        <h4 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4"></i> Adicionar Serviço</h4>
+                        <h4 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4 text-[#c41e3a]"></i> Adicionar Serviço</h4>
                         <div class="space-y-3">
                             <select id="public-service-select" onchange="updatePublicProfDropdown()" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
                                 <option value="">-- Selecione o serviço --</option>
@@ -132,44 +132,126 @@
 
     <!-- ================= VIEW DE ADMINISTRAÇÃO (INTERNA) ================= -->
     <div id="admin-view" class="h-full flex flex-col hidden fade-in">
-        <header class="bg-[#c41e3a] text-white px-6 py-4 shadow-md">
-            <div class="max-w-6xl mx-auto flex items-center justify-between">
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">Painel de Gestão</h1>
-                    <p class="text-xs opacity-80">Administração do Salão</p>
+        
+        <!-- HEADER ADMIN NOVO -->
+        <header class="bg-gradient-to-r from-[#c41e3a] to-[#a01729] text-white px-6 py-6 shadow-xl">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-white/20 flex items-center justify-center">
+                            <i data-lucide="scissors" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-2xl font-bold">Salão Unificado</h1>
+                            <p class="text-sm text-pink-100 mt-1">Gestão Completa ERP</p>
+                        </div>
+                    </div>
+                    <!-- Botão logout mobile -->
+                    <div class="flex md:hidden items-center gap-3">
+                        <button onclick="logout()" class="p-2 bg-white/10 hover:bg-white/20 rounded-full transition"><i data-lucide="log-out" class="w-4 h-4"></i></button>
+                    </div>
                 </div>
-                <div class="flex items-center gap-3">
-                    <button onclick="copyClientLink()" class="hidden md:flex items-center gap-2 bg-white text-[#c41e3a] px-3 py-1.5 rounded-full text-sm font-bold hover:bg-red-50 transition shadow-sm">
+                
+                <div class="flex items-center gap-4 w-full md:w-auto justify-around md:justify-end mt-2 md:mt-0">
+                    <div class="text-right">
+                        <p class="text-xs text-pink-100 uppercase tracking-wide">Agendamentos hoje</p>
+                        <p class="text-2xl font-bold" id="header-today-count">0</p>
+                    </div>
+                    <div class="w-px h-12 bg-white/30"></div>
+                    <div class="text-right">
+                        <p class="text-xs text-pink-100 uppercase tracking-wide">Faturamento</p>
+                        <p class="text-lg font-semibold" id="header-revenue-today">R$ 0,00</p>
+                    </div>
+                    <div class="w-px h-12 bg-white/30 hidden md:block"></div>
+                    <button onclick="copyClientLink()" class="hidden md:flex items-center gap-2 bg-white text-[#c41e3a] px-3 py-2 rounded-full text-sm font-bold hover:bg-red-50 transition shadow-sm">
                         <i data-lucide="link" class="w-4 h-4"></i> Link Público
                     </button>
-                    <button onclick="logout()" class="p-2 bg-[#a01729] hover:bg-white/20 rounded-full transition ml-2">
+                    <button onclick="logout()" class="hidden md:flex p-2 bg-white/10 hover:bg-white/20 rounded-full transition ml-2" title="Sair">
                         <i data-lucide="log-out" class="w-4 h-4"></i>
                     </button>
                 </div>
             </div>
         </header>
 
-        <nav class="bg-white border-b sticky top-0 z-10 shadow-sm">
-            <div class="max-w-6xl mx-auto flex overflow-x-auto no-scrollbar justify-between items-center pr-4">
-                <div class="flex">
-                    <button onclick="switchTabAdmin('agendamentos')" id="tab-agendamentos" class="px-5 py-4 text-sm font-medium tab-active flex items-center gap-2 whitespace-nowrap"><i data-lucide="calendar" class="w-4 h-4"></i> Agenda</button>
-                    <button onclick="switchTabAdmin('clientes')" id="tab-clientes" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="users" class="w-4 h-4"></i> Clientes</button>
-                    <button onclick="switchTabAdmin('equipe')" id="tab-equipe" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="contact" class="w-4 h-4"></i> Equipe</button>
-                    <button onclick="switchTabAdmin('servicos')" id="tab-servicos" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="briefcase" class="w-4 h-4"></i> Serviços</button>
-                    <button onclick="switchTabAdmin('estoque')" id="tab-estoque" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="package" class="w-4 h-4"></i> Estoque</button>
-                    <button onclick="switchTabAdmin('fornecedores')" id="tab-fornecedores" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="truck" class="w-4 h-4"></i> Fornecedores</button>
-                    <button onclick="switchTabAdmin('financeiro')" id="tab-financeiro" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Financeiro</button>
-                    <button onclick="switchTabAdmin('aniversariantes')" id="tab-aniversariantes" class="px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap"><i data-lucide="gift" class="w-4 h-4"></i> Aniversariantes</button>
-                </div>
+        <!-- TABS DE NAVEGAÇÃO -->
+        <nav class="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
+            <div class="max-w-7xl mx-auto flex overflow-x-auto no-scrollbar">
+                <button onclick="switchTabAdmin('dashboard')" id="tab-dashboard" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</button>
+                <button onclick="switchTabAdmin('agendamentos')" id="tab-agendamentos" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="calendar-days" class="w-4 h-4"></i> Agenda</button>
+                <button onclick="switchTabAdmin('clientes')" id="tab-clientes" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="users" class="w-4 h-4"></i> Clientes</button>
+                <button onclick="switchTabAdmin('equipe')" id="tab-equipe" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="contact" class="w-4 h-4"></i> Equipe</button>
+                <button onclick="switchTabAdmin('servicos')" id="tab-servicos" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="sparkles" class="w-4 h-4"></i> Serviços</button>
+                <button onclick="switchTabAdmin('estoque')" id="tab-estoque" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="package" class="w-4 h-4"></i> Estoque</button>
+                <button onclick="switchTabAdmin('fornecedores')" id="tab-fornecedores" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="truck" class="w-4 h-4"></i> Fornecedores</button>
+                <button onclick="switchTabAdmin('financeiro')" id="tab-financeiro" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Financeiro</button>
+                <button onclick="switchTabAdmin('aniversariantes')" id="tab-aniversariantes" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="gift" class="w-4 h-4"></i> Aniversariantes</button>
             </div>
         </nav>
 
-        <main class="max-w-6xl mx-auto p-4 md:p-6 w-full flex-1">
+        <main class="max-w-7xl mx-auto p-4 md:p-6 w-full flex-1">
+            
+            <!-- ABA: DASHBOARD -->
+            <section id="section-dashboard" class="fade-in space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-[#c41e3a]">
+                        <p class="text-gray-600 text-sm font-medium">Agendamentos Mês</p>
+                        <p class="text-3xl font-bold text-[#c41e3a] mt-2" id="dash-month-bookings">0</p>
+                        <p class="text-xs text-gray-400 mt-2">Total do período atual</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-green-500">
+                        <p class="text-gray-600 text-sm font-medium">Faturamento Mês</p>
+                        <p class="text-3xl font-bold text-green-600 mt-2 truncate" id="dash-month-revenue">R$ 0,00</p>
+                        <p class="text-xs text-gray-400 mt-2">Receitas confirmadas</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-blue-500">
+                        <p class="text-gray-600 text-sm font-medium">Profissionais</p>
+                        <p class="text-3xl font-bold text-blue-600 mt-2" id="dash-professionals">0</p>
+                        <p class="text-xs text-gray-400 mt-2">Cadastrados na equipe</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-6 shadow-sm border-l-4 border-purple-500">
+                        <p class="text-gray-600 text-sm font-medium">Serviços</p>
+                        <p class="text-3xl font-bold text-purple-600 mt-2" id="dash-services">0</p>
+                        <p class="text-xs text-gray-400 mt-2">Ativos no portfólio</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-gray-800 text-lg">Próximos Agendamentos</h3>
+                            <span class="text-xs bg-pink-100 text-pink-700 px-3 py-1.5 font-bold rounded-full">HOJE</span>
+                        </div>
+                        <div id="dash-upcoming" class="space-y-3 hidden"></div>
+                        <div id="dash-upcoming-empty" class="text-center py-8 text-gray-400">
+                            <i data-lucide="calendar-off" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+                            <p class="text-sm font-medium">Nenhum agendamento para hoje</p>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-200">
+                        <h3 class="font-bold text-gray-800 text-lg mb-4">Atalhos Rápidos</h3>
+                        <div class="space-y-3">
+                            <button onclick="showForm('agendamento')" class="w-full text-left px-4 py-3 rounded-lg bg-pink-50 hover:bg-pink-100 text-[#c41e3a] font-bold text-sm transition flex items-center gap-2 border border-pink-100"> 
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Novo Agendamento 
+                            </button> 
+                            <button onclick="showForm('receita')" class="w-full text-left px-4 py-3 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 font-bold text-sm transition flex items-center gap-2 border border-green-100"> 
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Lançar Receita 
+                            </button> 
+                            <button onclick="showForm('servico')" class="w-full text-left px-4 py-3 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-sm transition flex items-center gap-2 border border-blue-100"> 
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Novo Serviço 
+                            </button> 
+                            <button onclick="showForm('profissional')" class="w-full text-left px-4 py-3 rounded-lg bg-purple-50 hover:bg-purple-100 text-purple-700 font-bold text-sm transition flex items-center gap-2 border border-purple-100"> 
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i> Novo Profissional 
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <!-- ABA: AGENDAMENTOS -->
-            <section id="section-agendamentos" class="fade-in space-y-4">
+            <section id="section-agendamentos" class="fade-in hidden space-y-4">
                 <div class="flex justify-between items-center pt-2">
-                    <h2 class="text-lg font-bold text-gray-800">Próximos Agendamentos</h2>
-                    <button onclick="showForm('agendamento')" class="bg-[#c41e3a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#a01729] transition flex items-center gap-2">
+                    <h2 class="text-lg font-bold text-gray-800">Agendamentos Completos</h2>
+                    <button onclick="showForm('agendamento')" class="bg-[#c41e3a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#a01729] transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="plus" class="w-4 h-4"></i> Nova Marcação
                     </button>
                 </div>
@@ -178,9 +260,9 @@
 
             <!-- ABA: CLIENTES -->
             <section id="section-clientes" class="fade-in hidden space-y-4">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Fichas de Clientes</h2>
-                    <button onclick="showForm('cliente')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2">
+                    <button onclick="showForm('cliente')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="user-plus" class="w-4 h-4"></i> Novo Cliente
                     </button>
                 </div>
@@ -194,9 +276,9 @@
 
             <!-- ABA: EQUIPE -->
             <section id="section-equipe" class="fade-in hidden space-y-4">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Profissionais</h2>
-                    <button onclick="showForm('profissional')" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition flex items-center gap-2">
+                    <button onclick="showForm('profissional')" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="plus" class="w-4 h-4"></i> Novo Profissional
                     </button>
                 </div>
@@ -205,9 +287,9 @@
 
             <!-- ABA: SERVIÇOS -->
             <section id="section-servicos" class="fade-in hidden space-y-4">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Catálogo de Serviços</h2>
-                    <button onclick="showForm('servico')" class="bg-[#2d6a4f] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#1b4332] transition flex items-center gap-2">
+                    <button onclick="showForm('servico')" class="bg-[#2d6a4f] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#1b4332] transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="plus" class="w-4 h-4"></i> Novo Serviço
                     </button>
                 </div>
@@ -216,9 +298,9 @@
 
             <!-- ABA: ESTOQUE -->
             <section id="section-estoque" class="fade-in hidden space-y-4">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Controle de Estoque</h2>
-                    <button onclick="showForm('estoque')" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2">
+                    <button onclick="showForm('estoque')" class="bg-orange-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="package-plus" class="w-4 h-4"></i> Adicionar Item
                     </button>
                 </div>
@@ -227,9 +309,9 @@
 
             <!-- ABA: FORNECEDORES -->
             <section id="section-fornecedores" class="fade-in hidden space-y-4">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Fornecedores</h2>
-                    <button onclick="showForm('fornecedor')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2">
+                    <button onclick="showForm('fornecedor')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition flex items-center gap-2 shadow-sm">
                         <i data-lucide="plus" class="w-4 h-4"></i> Novo Fornecedor
                     </button>
                 </div>
@@ -238,13 +320,13 @@
 
             <!-- ABA: FINANCEIRO -->
             <section id="section-financeiro" class="fade-in hidden space-y-4">
-                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Contas a Pagar e Receber</h2>
                     <div class="flex gap-2 w-full sm:w-auto">
-                        <button onclick="showForm('receita')" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2">
+                        <button onclick="showForm('receita')" class="flex-1 sm:flex-none bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2 shadow-sm">
                             <i data-lucide="arrow-up-circle" class="w-4 h-4"></i> Nova Receita
                         </button>
-                        <button onclick="showForm('despesa')" class="flex-1 sm:flex-none bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2">
+                        <button onclick="showForm('despesa')" class="flex-1 sm:flex-none bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2 shadow-sm">
                             <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> Nova Despesa
                         </button>
                     </div>
@@ -287,7 +369,7 @@
                 <div class="flex justify-between items-center pt-2">
                     <h2 class="text-lg font-bold text-gray-800">Aniversariantes do Mês</h2>
                 </div>
-                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-4">
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mb-4 shadow-sm">
                     <p class="text-indigo-800 text-sm flex items-center gap-2 font-medium"><i data-lucide="info" class="w-4 h-4"></i> Aproveite para enviar felicitações e campanhas promocionais para os clientes abaixo!</p>
                 </div>
                 <div id="aniversariantes-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
@@ -398,6 +480,8 @@
                     if (isLoggedIn) {
                         document.getElementById('admin-view').classList.remove('hidden');
                         renderAllAdmin();
+                        // Força a aba Dashboard na inicialização
+                        switchTabAdmin('dashboard');
                     } else {
                         document.getElementById('login-view').classList.remove('hidden');
                     }
@@ -456,10 +540,7 @@
             return;
         }
 
-        // Traz apenas os profissionais que exercem tal função (que têm o serviço marcado)
         let profs = allData.filter(d => d.type === 'profissional' && d.servicos && d.servicos.includes(srvId));
-        
-        // Fallback: Se nenhum prof no sistema tem os serviços mapeados ainda, exibe todos para não travar o salão
         if (profs.length === 0) profs = allData.filter(d => d.type === 'profissional'); 
 
         if(profs.length === 0) {
@@ -484,15 +565,12 @@
         }
 
         const service = allData.find(d => d.__backendId === srvId);
-        
-        // Horários já reservados na base de dados para este profissional e data
         const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === profId && d.status !== 'cancelado');
         const bookedTimes = new Set(dbBookings.map(b => b.time));
 
-        // Adiciona horários que o cliente JÁ adicionou no carrinho
         publicCart.forEach(item => {
-            if(item.profId === profId) bookedTimes.add(item.time); // Bloqueia prof
-            bookedTimes.add(item.time); // Bloqueia o próprio cliente (não pode estar em dois lugares)
+            if(item.profId === profId) bookedTimes.add(item.time); 
+            bookedTimes.add(item.time); 
         });
 
         const slots = [];
@@ -526,7 +604,7 @@
     window.removeCartItem = function(index) {
         publicCart.splice(index, 1);
         renderCart();
-        updatePublicSlots(); // Atualiza os botões de horário caso o utilizador esteja no meio de uma escolha
+        updatePublicSlots(); 
     };
 
     function renderCart() {
@@ -606,6 +684,7 @@
             document.getElementById('login-view').classList.add('hidden');
             document.getElementById('admin-view').classList.remove('hidden');
             renderAllAdmin();
+            switchTabAdmin('dashboard'); // Entrar no dashboard
         } else { showToast("Credenciais incorretas", "error"); }
     }
 
@@ -618,26 +697,114 @@
     }
 
     function switchTabAdmin(tab) {
-        const sections = ['agendamentos', 'clientes', 'equipe', 'servicos', 'estoque', 'financeiro', 'fornecedores', 'aniversariantes'];
+        const sections = ['dashboard', 'agendamentos', 'clientes', 'equipe', 'servicos', 'estoque', 'financeiro', 'fornecedores', 'aniversariantes'];
         sections.forEach(s => {
             document.getElementById(`section-${s}`).classList.toggle('hidden', s !== tab);
             const btn = document.getElementById(`tab-${s}`);
             if(btn) {
-                btn.className = s === tab ? "px-5 py-4 text-sm font-medium tab-active flex items-center gap-2 whitespace-nowrap" : "px-5 py-4 text-sm font-medium text-gray-500 flex items-center gap-2 whitespace-nowrap";
+                // Remove estilos ativos de todos
+                btn.classList.remove('tab-active');
+                btn.classList.add('text-gray-500');
+                
+                // Se for a aba selecionada, adiciona classe de ativo
+                if(s === tab) {
+                    btn.classList.add('tab-active');
+                    btn.classList.remove('text-gray-500');
+                }
             }
         });
         try { lucide.createIcons(); } catch(e) {}
     }
 
     function renderAllAdmin() {
-        renderAgendamentos(); renderClientes(); renderEquipe(); renderServicos(); renderEstoque(); renderFinanceiro(); renderFornecedores(); renderAniversariantes();
+        updateDashboard();
+        renderAgendamentos(); 
+        renderClientes(); 
+        renderEquipe(); 
+        renderServicos(); 
+        renderEstoque(); 
+        renderFinanceiro(); 
+        renderFornecedores(); 
+        renderAniversariantes();
+    }
+
+    // ABA DASHBOARD ESTATÍSTICAS
+    function updateDashboard() {
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const today = `${yyyy}-${mm}-${dd}`;
+        const currentMonthPrefix = `${yyyy}-${mm}`;
+
+        const agendamentos = allData.filter(d => d.type === 'agendamento' && d.status !== 'cancelado');
+        const contas = allData.filter(d => d.type === 'conta');
+        const profissionais = allData.filter(d => d.type === 'profissional');
+        const servicos = allData.filter(d => d.type === 'servico');
+
+        const todayBookings = agendamentos.filter(a => a.date === today).sort((a, b) => (a.time||'').localeCompare(b.time||''));
+        const monthBookings = agendamentos.filter(a => (a.date||'').startsWith(currentMonthPrefix));
+
+        // Receitas pagas hoje
+        const todayRevenue = contas.filter(c => c.tipo_conta === 'receber' && c.status_conta === 'pago' && (c.data_pagamento||'').startsWith(today))
+                                   .reduce((sum, c) => sum + Number(c.valor||0), 0);
+        
+        // Receitas pagas no mês
+        const monthRevenue = contas.filter(c => c.tipo_conta === 'receber' && c.status_conta === 'pago' && (c.data_pagamento||'').startsWith(currentMonthPrefix))
+                                   .reduce((sum, c) => sum + Number(c.valor||0), 0);
+
+        // Atualizar Contadores
+        const elTodayCount = document.getElementById('header-today-count');
+        const elRevenueToday = document.getElementById('header-revenue-today');
+        const elDashMonthBookings = document.getElementById('dash-month-bookings');
+        const elDashMonthRevenue = document.getElementById('dash-month-revenue');
+        const elDashProfessionals = document.getElementById('dash-professionals');
+        const elDashServices = document.getElementById('dash-services');
+
+        if(elTodayCount) elTodayCount.textContent = todayBookings.length;
+        if(elRevenueToday) elRevenueToday.textContent = `R$ ${todayRevenue.toFixed(2).replace('.', ',')}`;
+        if(elDashMonthBookings) elDashMonthBookings.textContent = monthBookings.length;
+        if(elDashMonthRevenue) elDashMonthRevenue.textContent = `R$ ${monthRevenue.toFixed(2).replace('.', ',')}`;
+        if(elDashProfessionals) elDashProfessionals.textContent = profissionais.length;
+        if(elDashServices) elDashServices.textContent = servicos.length;
+
+        // Atualizar Próximos Agendamentos (Dash)
+        const dashUpcoming = document.getElementById('dash-upcoming');
+        const dashEmpty = document.getElementById('dash-upcoming-empty');
+        
+        if (dashUpcoming && dashEmpty) {
+            if (todayBookings.length > 0) {
+                dashUpcoming.innerHTML = todayBookings.slice(0, 5).map(b => {
+                    let statusBadge = `<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold">PENDENTE</span>`;
+                    if (b.status === 'concluido') statusBadge = `<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold">PAGO</span>`;
+                    if (b.status === 'fiado') statusBadge = `<span class="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">FIADO</span>`;
+
+                    return `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-xl border border-gray-100">
+                        <div>
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <p class="font-bold text-gray-800 text-sm">${b.client_name}</p>
+                                ${statusBadge}
+                            </div>
+                            <p class="text-xs text-gray-500">${b.service_name} • <span class="font-bold text-[#c41e3a]">${b.time}</span></p>
+                        </div>
+                        <button onclick="switchTabAdmin('agendamentos')" class="text-xs font-bold text-gray-400 hover:text-[#c41e3a] bg-white border border-gray-200 px-3 py-1.5 rounded-lg transition shadow-sm">Ver na Agenda</button>
+                    </div>
+                `}).join('');
+                dashUpcoming.classList.remove('hidden');
+                dashEmpty.classList.add('hidden');
+            } else {
+                dashUpcoming.classList.add('hidden');
+                dashEmpty.classList.remove('hidden');
+            }
+        }
     }
 
     // ABA AGENDA E BAIXAS
     function renderAgendamentos() {
         const items = allData.filter(d => d.type === 'agendamento').sort((a,b) => new Date(a.date||0) - new Date(b.date||0) || (a.time||'').localeCompare(b.time||''));
         const list = document.getElementById('agendamentos-list');
-        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center border border-dashed rounded-xl">Sem agendamentos.</p>' : items.map(item => {
+        list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center bg-white border border-dashed border-gray-200 rounded-xl">Sem agendamentos no momento.</p>' : items.map(item => {
             const isPendente = item.status === 'pendente' || !item.status;
             const isFiado = item.status === 'fiado';
             
@@ -686,7 +853,7 @@
         `;
 
         document.getElementById('modal-form').innerHTML = `
-            <div class="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-center font-bold text-gray-700">${item.client_name} - ${item.service_name}</div>
+            <div class="bg-gray-50 p-3 rounded-lg mb-4 text-sm text-center font-bold text-gray-700 border border-gray-200">${item.client_name} - ${item.service_name}</div>
             <div class="grid grid-cols-2 gap-3">
                 <div>
                     <label class="text-xs font-bold text-gray-500">Valor Cobrado (R$)</label>
@@ -729,7 +896,7 @@
             } else {
                 await db.collection(COLLECTION_NAME).doc(currentCheckoutId).update({ status: 'concluido' });
                 
-                // Lança no financeiro como "Recebido/Pago" indicando a Requisição se houver
+                // Lança no financeiro
                 const descReq = appt.requisicao ? ` [Req: ${appt.requisicao}]` : '';
                 await db.collection(COLLECTION_NAME).add({
                     type: 'conta', tipo_conta: 'receber', status_conta: 'pago',
@@ -741,6 +908,7 @@
                 });
             }
             closeModal(); showToast("Baixa efetuada!", "success");
+            updateDashboard(); // Reflete imediatamente no header
         } catch(e) { showToast("Erro ao processar.", "error"); }
         finally { setLoading(false); }
     }
@@ -750,12 +918,12 @@
         const items = allData.filter(d => d.type === 'profissional');
         const list = document.getElementById('equipe-list');
         list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4">Nenhum profissional cadastrado.</p>' : items.map(item => `
-            <div class="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-between">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-between shadow-sm">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex justify-center items-center font-bold text-lg">${item.name.charAt(0)}</div>
+                    <div class="w-10 h-10 bg-gradient-to-br from-pink-200 to-pink-400 text-white rounded-full flex justify-center items-center font-bold text-lg">${item.name.charAt(0)}</div>
                     <div><h4 class="font-bold text-gray-800">${item.name}</h4><p class="text-xs text-gray-500">${item.cargo || 'Profissional'}</p></div>
                 </div>
-                <button onclick="deleteItem('${item.__backendId}')" class="text-gray-400 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                <button onclick="deleteItem('${item.__backendId}')" class="text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
         `).join('');
         try { lucide.createIcons(); } catch(e) {}
@@ -813,7 +981,7 @@
         
         const list = document.getElementById('clientes-list');
         list.innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4">Nenhum cliente encontrado.</p>' : items.map(item => `
-            <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-md transition">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-md transition shadow-sm">
                 <div>
                     <h4 class="font-bold text-gray-800">${item.nome}</h4>
                     <p class="text-sm text-gray-500"><i data-lucide="phone" class="w-3 h-3 inline"></i> ${item.telefone || 'S/ N.'}</p>
@@ -870,7 +1038,7 @@
     function renderFornecedores() {
         const items = allData.filter(d => d.type === 'fornecedor').sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
         document.getElementById('fornecedores-list').innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4">Nenhum fornecedor cadastrado.</p>' : items.map(item => `
-            <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-md transition">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex justify-between items-center hover:shadow-md transition shadow-sm">
                 <div>
                     <h4 class="font-bold text-gray-800">${item.nome}</h4>
                     <p class="text-xs text-gray-500">CNPJ: ${item.cnpj || 'N/A'} | Tel: ${item.telefone || 'N/A'}</p>
@@ -885,16 +1053,17 @@
     function renderServicos() {
         const items = allData.filter(d => d.type === 'servico');
         document.getElementById('servicos-list').innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4">Vazio.</p>' : items.map(item => `
-            <div class="bg-white p-4 rounded-xl border border-gray-100 flex flex-col justify-between">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex flex-col justify-between shadow-sm">
                 <div class="mb-3"><p class="font-bold">${item.name}</p><p class="text-sm text-gray-500">${item.duration} min • R$ ${Number(item.price||0).toFixed(2)}</p></div>
-                <button onclick="deleteItem('${item.__backendId}')" class="text-xs py-1.5 rounded bg-red-50 text-red-600 font-bold">Remover</button>
+                <button onclick="deleteItem('${item.__backendId}')" class="w-full py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-medium text-xs transition flex items-center justify-center gap-1"><i data-lucide="trash-2" class="w-3 h-3"></i> Excluir</button>
             </div>`).join('');
+        try { lucide.createIcons(); } catch(e){}
     }
 
     function renderEstoque() {
         const items = allData.filter(d => d.type === 'estoque');
         document.getElementById('estoque-list').innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4">Vazio.</p>' : items.map(item => `
-            <div class="bg-white p-4 rounded-xl border shadow-sm flex flex-col justify-between">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col justify-between">
                 <div>
                     <span class="text-xs font-bold uppercase text-gray-400">${item.category}</span>
                     <h4 class="font-bold">${item.item_name}</h4>
@@ -910,7 +1079,7 @@
                 <div class="mt-4 flex gap-2">
                     <button onclick="openCompraModal('${item.__backendId}')" class="flex-1 bg-blue-50 text-blue-600 py-1.5 text-xs rounded-lg font-bold hover:bg-blue-100 transition"><i data-lucide="shopping-cart" class="w-3 h-3 inline"></i> Registrar Compra</button>
                     <button onclick="updateQty('${item.__backendId}', -1)" class="px-3 bg-gray-100 py-1.5 rounded-lg font-bold hover:bg-gray-200">-</button>
-                    <button onclick="deleteItem('${item.__backendId}')" class="p-1.5 text-red-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    <button onclick="deleteItem('${item.__backendId}')" class="p-1.5 text-red-300 hover:text-red-500 rounded bg-gray-50"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
             </div>`).join('');
         try { lucide.createIcons(); } catch(e){}
@@ -943,7 +1112,7 @@
                         <p class="text-xs text-gray-500"><i data-lucide="phone" class="w-3 h-3 inline"></i> ${item.telefone}</p>
                     </div>
                 </div>
-                <button onclick="window.open('https://wa.me/55${item.telefone.replace(/\D/g, '')}?text=${msg}', '_blank')" class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition" title="Enviar Parabéns no WhatsApp">
+                <button onclick="window.open('https://wa.me/55${item.telefone.replace(/\D/g, '')}?text=${msg}', '_blank')" class="bg-green-500 text-white p-2 rounded-lg hover:bg-green-600 transition shadow-sm" title="Enviar Parabéns no WhatsApp">
                     <i data-lucide="message-circle" class="w-5 h-5"></i>
                 </button>
             </div>
@@ -981,8 +1150,8 @@
         const totalPagar = items.filter(i => i.tipo_conta === 'pagar' && i.status_conta !== 'pago').reduce((a, c) => a + Number(c.valor||0), 0);
 
         document.getElementById('financeiro-summary').innerHTML = `
-            <div class="bg-green-50 p-4 rounded-xl border border-green-100"><p class="text-xs font-bold text-green-600">A Receber (Filtrado)</p><p class="text-xl font-bold text-green-700">R$ ${totalReceber.toFixed(2)}</p></div>
-            <div class="bg-red-50 p-4 rounded-xl border border-red-100"><p class="text-xs font-bold text-red-600">A Pagar (Filtrado)</p><p class="text-xl font-bold text-red-700">R$ ${totalPagar.toFixed(2)}</p></div>`;
+            <div class="bg-green-50 p-4 rounded-xl border border-green-100 shadow-sm"><p class="text-xs font-bold text-green-600">A Receber (Filtrado)</p><p class="text-xl font-bold text-green-700">R$ ${totalReceber.toFixed(2)}</p></div>
+            <div class="bg-red-50 p-4 rounded-xl border border-red-100 shadow-sm"><p class="text-xs font-bold text-red-600">A Pagar (Filtrado)</p><p class="text-xl font-bold text-red-700">R$ ${totalPagar.toFixed(2)}</p></div>`;
 
         document.getElementById('financeiro-list').innerHTML = items.length === 0 ? '<p class="text-gray-400 p-4 text-center">Nenhum registo encontrado para estes filtros.</p>' : items.map(item => {
             const isPago = item.status_conta === 'pago'; 
@@ -1011,7 +1180,7 @@
             if(item.nf) desc += ` (NF: ${item.nf})`;
 
             return `
-            <div class="bg-white p-4 rounded-xl border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3 ${isPago?'opacity-70 bg-gray-50':''}">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3 ${isPago?'opacity-70 bg-gray-50':''}">
                 <div class="flex items-start gap-3">
                     <div class="p-2.5 rounded-full ${isReceber ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
                         <i data-lucide="${isReceber ? 'arrow-up-circle' : 'arrow-down-circle'}" class="w-5 h-5"></i>
@@ -1024,8 +1193,8 @@
                 </div>
                 <div class="flex items-center gap-3 self-end md:self-auto">
                     <span class="font-bold text-sm ${isReceber ? 'text-green-600' : 'text-red-600'}">R$ ${Number(item.valor||0).toFixed(2)}</span>
-                    <button onclick="toggleContaStatus('${item.__backendId}')" class="px-3 py-1 text-xs rounded-full font-bold ${isPago ? 'bg-gray-200 text-gray-600' : (isReceber ? 'bg-green-500 text-white' : 'bg-red-500 text-white')}">${isPago ? 'Pago' : 'Pendente'}</button>
-                    <button onclick="deleteItem('${item.__backendId}')" class="text-gray-300 hover:text-red-500"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    <button onclick="toggleContaStatus('${item.__backendId}')" class="px-3 py-1 text-xs rounded-full font-bold shadow-sm ${isPago ? 'bg-gray-200 text-gray-600' : (isReceber ? 'bg-green-500 text-white' : 'bg-red-500 text-white')}">${isPago ? 'Pago' : 'Pendente'}</button>
+                    <button onclick="deleteItem('${item.__backendId}')" class="text-gray-400 hover:text-red-500 bg-gray-50 p-2 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
                 </div>
             </div>`;
         }).join('');
@@ -1034,7 +1203,10 @@
 
     window.toggleContaStatus = async function(id) {
         const item = allData.find(d => d.__backendId === id);
-        if (item) await db.collection(COLLECTION_NAME).doc(id).update({ status_conta: item.status_conta === 'pago' ? 'pendente' : 'pago' });
+        if (item) {
+            await db.collection(COLLECTION_NAME).doc(id).update({ status_conta: item.status_conta === 'pago' ? 'pendente' : 'pago' });
+            updateDashboard(); // Reflete imediatamente no header
+        }
     }
 
     window.updateQty = async function(id, change) {
@@ -1043,7 +1215,10 @@
     }
 
     window.deleteItem = async function(id) {
-        if(confirm("Eliminar este registo permanentemente?")) await db.collection(COLLECTION_NAME).doc(id).delete();
+        if(confirm("Eliminar este registo permanentemente?")) {
+            await db.collection(COLLECTION_NAME).doc(id).delete();
+            updateDashboard();
+        }
     }
 
     // --- UPLOAD DE ARQUIVOS ---
@@ -1388,11 +1563,13 @@
                 
                 showToast("Despesa salva com sucesso!", "success");
                 setLoading(false);
+                updateDashboard();
                 return; // Já salvou, sai da função
             }
 
             await db.collection(COLLECTION_NAME).add(data); 
             showToast("Salvo!", "success"); 
+            updateDashboard();
         } 
         catch(err) { showToast("Erro ao guardar", "error"); console.error(err); } 
         finally { setLoading(false); }
