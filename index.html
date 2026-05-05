@@ -746,12 +746,15 @@
         sections.forEach(s => {
             const sectionEl = document.getElementById(`section-${s}`);
             if(sectionEl) {
+                // CORREÇÃO: Aplicar flex apenas se for a aba IA
                 if(s === tab) {
                     sectionEl.classList.remove('hidden');
-                    sectionEl.classList.add('flex'); // Especial para aba IA que usa flex-col
+                    if(s === 'ia') {
+                        sectionEl.classList.add('flex');
+                    }
                 } else {
                     sectionEl.classList.add('hidden');
-                    sectionEl.classList.remove('flex');
+                    sectionEl.classList.remove('flex'); // Remove flex quando não está visível
                 }
             }
 
