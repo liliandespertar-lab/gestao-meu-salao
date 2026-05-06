@@ -251,7 +251,7 @@
             </div>
         </header>
 
-        <!-- TABS DE NAVEGAÇÃO (AGORA COM BOTÃO DE SAIR SEMPRE VISÍVEL) -->
+        <!-- TABS DE NAVEGAÇÃO -->
         <nav class="bg-white shadow-sm sticky top-0 z-10 border-b border-gray-200">
             <div class="max-w-7xl mx-auto flex overflow-x-auto no-scrollbar items-center">
                 <button onclick="switchTabAdmin('dashboard')" id="tab-dashboard" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard</button>
@@ -265,7 +265,6 @@
                 <button onclick="switchTabAdmin('financeiro')" id="tab-financeiro" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="dollar-sign" class="w-4 h-4"></i> Financeiro</button>
                 <button onclick="switchTabAdmin('aniversariantes')" id="tab-aniversariantes" class="px-5 py-4 text-sm font-medium text-gray-500 hover:text-[#c41e3a] flex items-center gap-2 whitespace-nowrap"><i data-lucide="gift" class="w-4 h-4"></i> Aniversariantes</button>
                 
-                <!-- NOVO BOTÃO DE SAIR NAS ABAS (SEMPRE VISÍVEL SE FIZER SCROLL) -->
                 <button onclick="logout()" class="px-5 py-4 text-sm font-bold text-red-600 hover:text-red-800 flex items-center gap-2 whitespace-nowrap ml-auto bg-red-50 border-l border-red-100 transition">
                     <i data-lucide="log-out" class="w-4 h-4"></i> Sair da Conta
                 </button>
@@ -794,10 +793,13 @@
         }
 
         if (!isWorkingDay) {
-            slotsDiv.innerHTML = '<div class="col-span-full text-center text-sm text-red-500 font-bold p-4 bg-red-50 rounded-xl border border-red-100"><i data-lucide="calendar-x" class="w-5 h-5 inline mr-1"></i> Profissional não atende neste dia.</div>';
+            slotsDiv.innerHTML = '<div class="col-span-full text-center text-sm text-red-500 font-bold p-4 bg-red-50 rounded-xl border border-red-100"><i data-lucide="calendar-x" class="w-5 h-5 inline mr-1"></i> Profissional folga neste dia da semana.</div>';
             try { lucide.createIcons(); } catch(e){}
             return;
         }
+
+        // --- LÓGICA DE EXCEÇÕES ESPECÍFICAS DE DATA ---
+        const dateExceptions = (prof.excecoes || []).filter(e => e.date === date);
 
         const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === profId && d.status !== 'cancelado');
         const bookedTimes = new Set(dbBookings.map(b => b.time));
@@ -820,12 +822,41 @@
             const hStr = String(Math.floor(m / 60)).padStart(2, '0');
             const mStr = String(m % 60).padStart(2, '0');
             const timeStr = `${hStr}:${mStr}`;
-            slots.push({ time: timeStr, booked: bookedTimes.has(timeStr) });
+            
+            // Verifica sobreposição com as exceções / bloqueios do profissional
+            let overlapException = false;
+            const slotStartMins = m;
+            const slotEndMins = m + duration;
+
+            for (let exc of dateExceptions) {
+                if(!exc.inicio || !exc.fim) continue;
+                const [bH, bM] = exc.inicio.split(':').map(Number);
+                const [eH, eM] = exc.fim.split(':').map(Number);
+                const blockStartMins = bH * 60 + bM;
+                const blockEndMins = eH * 60 + eM;
+
+                // Se o inicio do slot for ANTES do fim do bloqueio E o fim do slot for DEPOIS do inicio do bloqueio, há sobreposição!
+                if (slotStartMins < blockEndMins && slotEndMins > blockStartMins) {
+                    overlapException = true;
+                    break;
+                }
+            }
+
+            // Se estiver agendado OU bloqueado por exceção, fica indisponível
+            const isBooked = bookedTimes.has(timeStr) || overlapException;
+
+            slots.push({ time: timeStr, booked: isBooked });
+        }
+
+        if(slots.length === 0 || slots.every(s => s.booked)) {
+             slotsDiv.innerHTML = '<div class="col-span-full text-center text-sm text-red-500 font-bold p-4 bg-red-50 rounded-xl border border-red-100"><i data-lucide="calendar-x" class="w-5 h-5 inline mr-1"></i> Sem horários livres hoje.</div>';
+             try { lucide.createIcons(); } catch(e){}
+             return;
         }
 
         slotsDiv.innerHTML = slots.map(s => `
             <button type="button" onclick="addToCart('${srvId}', '${profId}', '${s.time}')" 
-                class="py-2 px-1 rounded-lg text-xs font-bold ${s.booked ? 'bg-gray-100 text-gray-400 cursor-not-allowed line-through' : 'bg-white border border-gray-300 text-gray-700 hover:border-[#c41e3a] hover:text-[#c41e3a]'}" 
+                class="py-2 px-1 rounded-lg text-xs font-bold ${s.booked ? 'bg-gray-100 text-gray-400 cursor-not-allowed line-through opacity-50' : 'bg-white border border-gray-300 text-gray-700 hover:border-[#c41e3a] hover:text-[#c41e3a]'}" 
                 ${s.booked ? 'disabled' : ''}>${s.time}</button>
         `).join('');
     };
@@ -1689,6 +1720,23 @@
         document.getElementById('modal-overlay').classList.remove('hidden');
     }
 
+    // --- NOVA FUNÇÃO: ADICIONAR LINHA DE EXCEÇÃO ---
+    window.addExcRow = function(date = '', inicio = '', fim = '') {
+        const container = document.getElementById('exc-container');
+        if(!container) return;
+        const div = document.createElement('div');
+        div.className = "flex gap-2 items-center mb-2 fade-in";
+        div.innerHTML = `
+            <input type="date" name="exc_date[]" value="${date}" class="p-2 border border-gray-200 rounded-lg text-xs flex-1 outline-none focus:border-[#c41e3a]" required>
+            <input type="time" name="exc_inicio[]" value="${inicio}" class="p-2 border border-gray-200 rounded-lg text-xs w-24 outline-none focus:border-[#c41e3a]" required>
+            <span class="text-xs text-gray-400">até</span>
+            <input type="time" name="exc_fim[]" value="${fim}" class="p-2 border border-gray-200 rounded-lg text-xs w-24 outline-none focus:border-[#c41e3a]" required>
+            <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition" title="Remover Bloqueio"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        `;
+        container.appendChild(div);
+        try{lucide.createIcons();}catch(e){}
+    };
+
     // --- FORMULÁRIOS ADMIN MODAL ---
     window.showForm = function(type, editId = null) {
         currentFormType = type;
@@ -1737,10 +1785,16 @@
                 <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Salvar Ficha</button>`;
         } 
         else if (type === 'profissional') {
-            let pName = '', pCargo = '', pServs = [], pHorarios = null;
+            let pName = '', pCargo = '', pServs = [], pHorarios = null, pExcecoes = [];
             if (editId) {
                 const p = allData.find(d => d.__backendId === editId);
-                if (p) { pName = p.name || ''; pCargo = p.cargo || ''; pServs = p.servicos || []; pHorarios = p.horarios || null; }
+                if (p) { 
+                    pName = p.name || ''; 
+                    pCargo = p.cargo || ''; 
+                    pServs = p.servicos || []; 
+                    pHorarios = p.horarios || null; 
+                    pExcecoes = p.excecoes || [];
+                }
                 title.textContent = 'Editar Profissional e Horários';
             } else {
                 title.textContent = 'Novo Profissional';
@@ -1785,13 +1839,27 @@
                 </div>
 
                 <div class="border-t border-gray-100 pt-4">
-                    <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Horário de Trabalho (Disponibilidade Pública):</label>
+                    <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> Horário Base de Trabalho (Semanal):</label>
                     <div class="flex flex-col gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
                         ${horariosHtml}
                     </div>
                 </div>
 
+                <!-- NOVA SECÇÃO: EXCEÇÕES DE DATA -->
+                <div class="border-t border-gray-100 pt-4 mt-4">
+                    <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="calendar-x" class="w-3 h-3"></i> Bloqueios de Data Específica (Almoço solto, médico, folga):</label>
+                    <div id="exc-container" class="space-y-1"></div>
+                    <button type="button" onclick="addExcRow()" class="mt-2 text-xs font-bold text-[#c41e3a] bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition">+ Adicionar Dia/Horário Bloqueado</button>
+                </div>
+
                 <button type="submit" class="w-full bg-purple-600 text-white p-3.5 rounded-xl font-bold mt-4 hover:bg-purple-700 transition shadow-lg">${editId ? 'Salvar Alterações' : 'Salvar Novo Membro'}</button>`;
+            
+            // Injetar as exceções existentes após renderizar o HTML
+            setTimeout(() => {
+                if (pExcecoes && pExcecoes.length > 0) {
+                    pExcecoes.forEach(e => addExcRow(e.date, e.inicio, e.fim));
+                }
+            }, 50);
         } 
         else if (type === 'fornecedor') {
             title.textContent = 'Novo Fornecedor';
@@ -1978,6 +2046,19 @@
                 fd.delete(`dia_fim_${i}`);
             }
             data.horarios = horarios;
+
+            // Processar Exceções
+            const excDates = fd.getAll('exc_date[]');
+            const excInicios = fd.getAll('exc_inicio[]');
+            const excFims = fd.getAll('exc_fim[]');
+            let excecoes = [];
+            
+            for(let i = 0; i < excDates.length; i++) {
+                if(excDates[i]) {
+                    excecoes.push({ date: excDates[i], inicio: excInicios[i], fim: excFims[i] });
+                }
+            }
+            data.excecoes = excecoes;
         }
 
         // --- PREPARAÇÃO DO AGENDAMENTO (ADMIN) ---
@@ -1997,12 +2078,12 @@
             data.profissional = profSel.options[profSel.selectedIndex].dataset.name;
         }
 
-        fd.forEach((v, k) => data[k] = v);
+        fd.forEach((v, k) => {
+            // Ignorar arrays de exceções processados manualmente
+            if(!k.includes('[]')) data[k] = v;
+        });
         
-        // Apenas o agendamento não fecha o modal imediatamente (para mostrar a opção do Google Calendar)
-        if(currentFormType !== 'agendamento') {
-            closeModal(); 
-        }
+        if(currentFormType !== 'agendamento') { closeModal(); }
         setLoading(true, "A gravar...");
 
         try { 
