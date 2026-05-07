@@ -1099,7 +1099,7 @@
     // =========================================================================
     // LÓGICA DO ASSISTENTE DE IA (GEMINI API)
     // =========================================================================
-    const apiKey = "AIzaSyCvQgxC4x_xsxdhH-Pe6Yusxi_nDG6FEvI"; 
+    const apiKey = ""; 
     
     window.sendToIA = async function() {
         const inputEl = document.getElementById('ia-input');
@@ -1126,34 +1126,15 @@
 
             const payload = { contents: [{ role: "user", parts: [{ text: universalPrompt }] }] };
 
-            // 1. Busca dinamicamente os modelos permitidos pela SUA chave de API
-            let targetModel = "models/gemini-1.5-flash-latest"; // Fallback de segurança
-            try {
-                const checkReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-                if (checkReq.ok) {
-                    const checkData = await checkReq.json();
-                    // Filtra apenas modelos que suportem gerar texto
-                    const validModels = checkData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"));
-                    
-                    // Escolhe a melhor opção disponível para a sua conta
-                    const bestModel = validModels.find(m => m.name.includes('1.5-flash')) || 
-                                      validModels.find(m => m.name === 'models/gemini-pro') || 
-                                      validModels.find(m => m.name.includes('gemini')) ||
-                                      validModels[0];
-                                      
-                    if (bestModel) targetModel = bestModel.name;
-                }
-            } catch (err) {
-                console.warn("Aviso: Falha ao listar modelos, usando o modelo padrão.");
-            }
+            // Modelo oficialmente suportado no ambiente de execução atual
+            const targetModel = "models/gemini-2.5-flash-preview-09-2025";
 
-            // 2. Faz a chamada ao modelo selecionado
             let success = false;
             let result = null;
             let lastError = null;
-            const retries = [1000, 2000, 4000];
+            const retries = [1000, 2000, 4000, 8000, 16000];
 
-            for (let i = 0; i <= 3; i++) {
+            for (let i = 0; i <= retries.length; i++) {
                 try {
                     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/${targetModel}:generateContent?key=${apiKey}`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
@@ -1165,7 +1146,8 @@
                         lastError = new Error(result.error?.message || "Erro desconhecido na API."); 
                     }
                 } catch (e) { lastError = e; }
-                if (i < 3 && !success) await delay(retries[i]);
+                
+                if (i < retries.length && !success) await delay(retries[i]);
             }
 
             if (success) {
