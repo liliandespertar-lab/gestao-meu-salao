@@ -1126,9 +1126,28 @@
 
             const payload = { contents: [{ role: "user", parts: [{ text: universalPrompt }] }] };
 
-            // Utiliza diretamente o modelo estável mais recente e rápido, ignorando a pesquisa prévia de modelos
-            const targetModel = "models/gemini-1.5-flash";
+            // 1. Busca dinamicamente os modelos permitidos pela SUA chave de API
+            let targetModel = "models/gemini-1.5-flash-latest"; // Fallback de segurança
+            try {
+                const checkReq = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+                if (checkReq.ok) {
+                    const checkData = await checkReq.json();
+                    // Filtra apenas modelos que suportem gerar texto
+                    const validModels = checkData.models.filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes("generateContent"));
+                    
+                    // Escolhe a melhor opção disponível para a sua conta
+                    const bestModel = validModels.find(m => m.name.includes('1.5-flash')) || 
+                                      validModels.find(m => m.name === 'models/gemini-pro') || 
+                                      validModels.find(m => m.name.includes('gemini')) ||
+                                      validModels[0];
+                                      
+                    if (bestModel) targetModel = bestModel.name;
+                }
+            } catch (err) {
+                console.warn("Aviso: Falha ao listar modelos, usando o modelo padrão.");
+            }
 
+            // 2. Faz a chamada ao modelo selecionado
             let success = false;
             let result = null;
             let lastError = null;
