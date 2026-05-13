@@ -85,36 +85,8 @@
                 <div class="mt-4 text-sm">
                     <button type="button" onclick="toggleAuthView('forgot')" class="text-[#c41e3a] hover:underline font-medium">Esqueceu a senha?</button>
                 </div>
-                <div class="mt-4 pt-4 border-t border-gray-100 text-sm">
-                    <span class="text-gray-500">Não tem conta?</span>
-                    <button type="button" onclick="toggleAuthView('register')" class="text-[#c41e3a] hover:underline font-bold ml-1">Cadastre-se</button>
-                </div>
-            </div>
-
-            <!-- CONTAINER: REGISTER -->
-            <div id="register-container" class="hidden">
-                <h1 class="text-2xl font-bold text-gray-800 mb-2">Criar Conta</h1>
-                <p class="text-sm text-gray-500 mb-8">Registe-se para aceder ao painel de gestão exclusivo para o seu salão.</p>
-                <form onsubmit="handleRegister(event)" class="space-y-4 text-left">
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">E-mail</label>
-                        <input type="email" id="reg-email" required class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Palavra-passe</label>
-                        <input type="password" id="reg-pass" required minlength="6" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50" placeholder="Mínimo de 6 caracteres">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-bold text-gray-700 mb-1">Confirmar Palavra-passe</label>
-                        <input type="password" id="reg-conf" required minlength="6" class="w-full p-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#c41e3a]/50">
-                    </div>
-                    <button type="submit" class="w-full bg-[#c41e3a] text-white p-3.5 rounded-xl font-bold text-lg hover:bg-[#a01a30] transition mt-2">
-                        Criar Conta
-                    </button>
-                </form>
-                <div class="mt-4 pt-4 border-t border-gray-100 text-sm">
-                    <span class="text-gray-500">Já tem uma conta?</span>
-                    <button type="button" onclick="toggleAuthView('login')" class="text-[#c41e3a] hover:underline font-bold ml-1">Fazer Login</button>
+                <div class="mt-4 pt-4 border-t border-gray-100 text-sm text-center">
+                    <span class="text-gray-500 font-medium"><i data-lucide="lock" class="w-3 h-3 inline"></i> Acesso restrito a empresas parceiras.</span>
                 </div>
             </div>
 
@@ -139,6 +111,56 @@
             </div>
 
         </div>
+    </div>
+
+    <!-- ================= VIEW DO MASTER (ESTILO NEXA STOCK) ================= -->
+    <div id="master-view" class="h-full flex flex-col hidden fade-in bg-slate-900 overflow-y-auto">
+        <header class="bg-slate-950 text-white px-6 py-6 shadow-xl border-b border-slate-800 flex justify-between items-center sticky top-0 z-10">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
+                    <i data-lucide="database" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold">Painel Master</h1>
+                    <p class="text-xs md:text-sm text-indigo-300 mt-1">Gestão de Empresas e Bancos de Dados</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="px-4 py-2 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/20 rounded-lg text-sm font-bold transition flex items-center gap-2">
+                <i data-lucide="log-out" class="w-4 h-4"></i> <span class="hidden md:inline">Sair do Master</span>
+            </button>
+        </header>
+
+        <main class="max-w-7xl mx-auto p-4 md:p-8 w-full flex-1 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Lista de Empresas -->
+            <div class="lg:col-span-2 space-y-4">
+                <h2 class="text-xl font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="building-2" class="text-indigo-400"></i> Empresas Cadastradas</h2>
+                <div id="master-empresas-list" class="space-y-3">
+                    <!-- Gerado via JS -->
+                </div>
+            </div>
+            
+            <!-- Cadastro de Nova Empresa -->
+            <div class="bg-slate-800 rounded-2xl p-6 border border-slate-700 h-fit">
+                <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2"><i data-lucide="plus-circle" class="text-emerald-400"></i> Cadastrar Nova Empresa</h2>
+                <form onsubmit="handleMasterCreate(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">Nome do Salão/Empresa</label>
+                        <input type="text" id="master-empresa-nome" required class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">E-mail de Acesso (Login)</label>
+                        <input type="email" id="master-empresa-email" required class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 mb-1">Senha Inicial</label>
+                        <input type="password" id="master-empresa-pass" required minlength="6" class="w-full p-3 bg-slate-900 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-indigo-500">
+                    </div>
+                    <button type="submit" class="w-full bg-emerald-600 text-white p-3.5 rounded-xl font-bold hover:bg-emerald-700 transition mt-2 shadow-lg flex items-center justify-center gap-2">
+                        <i data-lucide="server"></i> Criar Banco de Dados
+                    </button>
+                </form>
+            </div>
+        </main>
     </div>
 
     <!-- ================= VIEW DO CLIENTE (PÚBLICA) ================= -->
@@ -231,6 +253,12 @@
     <!-- ================= VIEW DE ADMINISTRAÇÃO (INTERNA) ================= -->
     <div id="admin-view" class="h-full flex flex-col hidden fade-in">
         
+        <!-- BANNER MODO MASTER IMPERSONATION -->
+        <div id="impersonation-banner" class="hidden bg-indigo-600 text-white text-center text-sm font-bold py-2 px-4 w-full shadow-md flex items-center justify-center gap-4 z-50">
+            <span><i data-lucide="eye" class="w-4 h-4 inline mr-1"></i> A aceder aos dados de: <span id="impersonation-name" class="text-indigo-200"></span> (MODO MASTER)</span>
+            <button onclick="exitImpersonation()" class="bg-indigo-800 hover:bg-indigo-900 px-3 py-1 rounded text-xs transition">Voltar ao Painel Master</button>
+        </div>
+
         <!-- HEADER ADMIN NOVO -->
         <header class="bg-gradient-to-r from-[#c41e3a] to-[#a01729] text-white px-6 py-6 shadow-xl">
             <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
@@ -245,8 +273,9 @@
                             <p class="text-sm text-pink-100 mt-1">Gestão Completa ERP</p>
                         </div>
                     </div>
-                    <!-- Botão logout mobile original -->
+                    <!-- Botão logout mobile original com Cadeado -->
                     <div class="flex md:hidden items-center gap-3">
+                        <button onclick="openChangePassword()" class="p-2 bg-white/20 hover:bg-white/30 text-white rounded-lg transition" title="Mudar Senha"><i data-lucide="lock" class="w-4 h-4"></i></button>
                         <button onclick="logout()" class="px-3 py-2 bg-red-900/40 hover:bg-red-900/60 text-white rounded-lg text-sm font-bold transition flex items-center gap-2"><i data-lucide="log-out" class="w-4 h-4"></i> Sair</button>
                     </div>
                 </div>
@@ -269,6 +298,10 @@
                     <a href="tutorial.html" target="_blank" class="hidden lg:flex items-center gap-2 bg-white/20 text-white px-3 py-2 rounded-full text-sm font-bold hover:bg-white/30 transition shadow-sm ml-2">
                         <i data-lucide="help-circle" class="w-4 h-4"></i> Ajuda
                     </a>
+                    <!-- Botão de Cadeado (Mudar Senha) Desktop -->
+                    <button onclick="openChangePassword()" class="hidden md:flex items-center gap-2 bg-white/20 text-white px-3 py-2 rounded-full text-sm font-bold hover:bg-white/30 transition shadow-sm ml-2" title="Alterar Senha de Acesso">
+                        <i data-lucide="lock" class="w-4 h-4"></i> Senha
+                    </button>
                     <!-- Botão logout desktop original -->
                     <button onclick="logout()" class="hidden md:flex items-center gap-2 bg-red-900/40 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-red-900/60 transition shadow-sm ml-2">
                         <i data-lucide="log-out" class="w-4 h-4"></i> Sair do Sistema
@@ -568,6 +601,7 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    const secondaryApp = firebase.initializeApp(firebaseConfig, "Secondary"); // Instância isolada para o Master criar contas
     const db = firebase.firestore();
     const storage = firebase.storage(); 
     const auth = firebase.auth();
@@ -628,14 +662,38 @@
     // --- OUVINTE DE ESTADO DE AUTENTICAÇÃO ---
     auth.onAuthStateChanged(user => {
         if (user) {
-            currentUserId = user.uid;
-            sessionStorage.setItem('admin_logged_in', 'true');
-            document.getElementById('login-view').classList.add('hidden');
-            document.getElementById('admin-view').classList.remove('hidden');
-            switchTabAdmin('dashboard');
-            filterAndRenderData();
-            requestNotificationPermission(); // Pede permissão para mostrar notificações no PC/Celular
+            // VERIFICAÇÃO DO UTILIZADOR MASTER
+            if (user.email === 'master@gestaobeauty.com' && !sessionStorage.getItem('impersonating')) {
+                currentUserId = user.uid;
+                sessionStorage.setItem('admin_logged_in', 'true');
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.add('hidden');
+                document.getElementById('master-view').classList.remove('hidden');
+                loadEmpresas();
+                setLoading(false);
+            } else {
+                // VERIFICAÇÃO DO UTILIZADOR NORMAL OU MASTER IMPERSONADO
+                currentUserId = sessionStorage.getItem('impersonating') || user.uid;
+                sessionStorage.setItem('admin_logged_in', 'true');
+                document.getElementById('login-view').classList.add('hidden');
+                document.getElementById('master-view').classList.add('hidden');
+                document.getElementById('admin-view').classList.remove('hidden');
+                
+                // Exibe o banner de aviso se o Master estiver dentro de um salão
+                if (sessionStorage.getItem('impersonating')) {
+                    document.getElementById('impersonation-banner').classList.remove('hidden');
+                    document.getElementById('impersonation-name').textContent = sessionStorage.getItem('impersonating_name') || 'Empresa';
+                } else {
+                    document.getElementById('impersonation-banner').classList.add('hidden');
+                }
+
+                switchTabAdmin('dashboard');
+                filterAndRenderData();
+                requestNotificationPermission(); // Pede permissão para mostrar notificações no PC/Celular
+            }
         } else {
+            sessionStorage.removeItem('impersonating');
+            sessionStorage.removeItem('impersonating_name');
             if (sessionStorage.getItem('admin_logged_in') === 'true') {
                 currentUserId = 'admin_default';
                 document.getElementById('login-view').classList.add('hidden');
@@ -996,9 +1054,9 @@
     // --- SISTEMA DE LOGIN E ADMIN ---
     function toggleAuthView(view) {
         document.getElementById('login-container').classList.add('hidden');
-        document.getElementById('register-container').classList.add('hidden');
         document.getElementById('forgot-container').classList.add('hidden');
-        document.getElementById(view + '-container').classList.remove('hidden');
+        const viewEl = document.getElementById(view + '-container');
+        if(viewEl) viewEl.classList.remove('hidden');
     }
 
     async function handleLogin(e) {
@@ -1008,7 +1066,19 @@
         
         setLoading(true, "A autenticar...");
         try {
-            await auth.signInWithEmailAndPassword(email, pass);
+            if (email === 'master@gestaobeauty.com') {
+                try {
+                    await auth.signInWithEmailAndPassword(email, pass);
+                } catch (err) {
+                    // Se o Master não existir, cria a conta automaticamente com a senha que inseriu
+                    if (err.code === 'auth/user-not-found') {
+                        await auth.createUserWithEmailAndPassword(email, pass);
+                        showToast("Conta Master criada e autenticada com sucesso!", "success");
+                    } else { throw err; }
+                }
+            } else {
+                await auth.signInWithEmailAndPassword(email, pass);
+            }
             setTimeout(() => setLoading(false), 2000); // Garante que o loading sai se a transição demorar
         } catch (error) {
             if ((email === 'admin' || email === 'admin@gestao.com') && pass === 'admin123') {
@@ -1018,29 +1088,6 @@
                 showToast("Credenciais incorretas ou conta não existe.", "error");
                 setLoading(false);
             }
-        }
-    }
-
-    async function handleRegister(e) {
-        e.preventDefault();
-        const email = document.getElementById('reg-email').value;
-        const pass = document.getElementById('reg-pass').value;
-        const conf = document.getElementById('reg-conf').value;
-
-        if (pass !== conf) {
-            showToast("As senhas não coincidem.", "error");
-            return;
-        }
-
-        setLoading(true, "A criar conta...");
-        try {
-            await auth.createUserWithEmailAndPassword(email, pass);
-            showToast("Conta criada com sucesso!", "success");
-            setLoading(false);
-        } catch (error) {
-            console.error(error);
-            showToast("Erro: E-mail inválido, já existe ou senha fraca.", "error");
-            setLoading(false);
         }
     }
 
@@ -1932,6 +1979,28 @@
         
         if (currentFormType === 'checkout') { return handleCheckoutSubmit(fd); }
         
+        // MUDANÇA DE SENHA
+        if (currentFormType === 'change_password') {
+            const p1 = document.getElementById('new-pass').value;
+            const p2 = document.getElementById('new-pass-conf').value;
+            if(p1 !== p2) { showToast("As senhas não coincidem.", "error"); return; }
+            
+            setLoading(true, "A atualizar senha...");
+            try {
+                await auth.currentUser.updatePassword(p1);
+                showToast("Senha alterada! Por favor, entre novamente com a nova senha.", "success");
+                setTimeout(() => logout(), 2500);
+            } catch (error) {
+                if(error.code === 'auth/requires-recent-login') {
+                    showToast("Por segurança, feche a sessão e faça login novamente antes de alterar a senha.", "error");
+                } else {
+                    showToast("Erro ao alterar senha. Verifique se tem pelo menos 6 caracteres.", "error");
+                }
+                setLoading(false);
+            }
+            return;
+        }
+
         if (currentFormType === 'registrar_compra') {
             const item = allData.find(d => d.__backendId === currentCheckoutId);
             const qtd = parseInt(fd.get('quantidade_comprada'));
@@ -2124,6 +2193,104 @@
         // Notificações 'info' ficam mais tempo na tela (6 segundos)
         setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), type === 'info' ? 6000 : 3000);
     };
+
+    // =========================================================================
+    // FUNÇÕES MODO MASTER & SEGURANÇA
+    // =========================================================================
+    
+    window.openChangePassword = function() {
+        currentFormType = 'change_password';
+        document.getElementById('modal-title').textContent = 'Alterar Senha de Acesso';
+        document.getElementById('modal-form').innerHTML = `
+            <div class="mb-4 text-sm text-gray-500 bg-gray-50 p-3 rounded-lg border border-gray-100"><i data-lucide="shield" class="w-4 h-4 inline mr-1 text-gray-400"></i> Por motivos de segurança, após alterar a senha, a sua sessão será terminada e deverá entrar novamente.</div>
+            <div><label class="block text-xs font-bold text-gray-700 mb-1">Nova Senha (Mínimo 6 caracteres)</label>
+            <input type="password" id="new-pass" required minlength="6" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-[#c41e3a] focus:outline-none"></div>
+            <div><label class="block text-xs font-bold text-gray-700 mb-1 mt-3">Confirmar Nova Senha</label>
+            <input type="password" id="new-pass-conf" required minlength="6" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-[#c41e3a] focus:outline-none"></div>
+            <button type="submit" class="w-full bg-[#c41e3a] text-white p-3.5 rounded-xl font-bold mt-5 hover:bg-[#a01a30] transition shadow-lg flex items-center justify-center gap-2"><i data-lucide="lock-keyhole" class="w-4 h-4"></i> Atualizar Senha</button>
+        `;
+        document.getElementById('modal-overlay').classList.remove('hidden');
+        try{lucide.createIcons();}catch(e){}
+    };
+
+    async function loadEmpresas() {
+        setLoading(true, "A carregar banco de dados de empresas...");
+        try {
+            const snapshot = await db.collection('empresas').orderBy('criado_em', 'desc').get();
+            const list = document.getElementById('master-empresas-list');
+            if (snapshot.empty) {
+                list.innerHTML = '<div class="bg-slate-800 p-6 rounded-xl border border-slate-700 text-center text-slate-400">Nenhuma empresa cadastrada no momento.</div>';
+            } else {
+                let html = '';
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    html += `
+                    <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:border-indigo-500 transition shadow-sm">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center text-indigo-400 font-bold border border-slate-700 text-lg shadow-inner">${(data.nome||'E').charAt(0)}</div>
+                            <div>
+                                <h4 class="font-bold text-white text-lg">${data.nome}</h4>
+                                <p class="text-sm text-slate-400"><i data-lucide="mail" class="w-3 h-3 inline"></i> ${data.email}</p>
+                            </div>
+                        </div>
+                        <button onclick="impersonate('${doc.id}', '${data.nome.replace(/'/g, "\\'")}')" class="w-full md:w-auto bg-indigo-600/20 text-indigo-400 border border-indigo-500/50 px-4 py-2 rounded-lg text-sm font-bold hover:bg-indigo-600 hover:text-white transition flex items-center justify-center gap-2 shadow-sm">
+                            <i data-lucide="database" class="w-4 h-4"></i> Aceder a Dados
+                        </button>
+                    </div>`;
+                });
+                list.innerHTML = html;
+                try{lucide.createIcons();}catch(e){}
+            }
+        } catch(e) {
+            console.error(e);
+            showToast("Erro ao carregar lista de empresas.", "error");
+        }
+        setLoading(false);
+    }
+
+    window.handleMasterCreate = async function(e) {
+        e.preventDefault();
+        const nome = document.getElementById('master-empresa-nome').value;
+        const email = document.getElementById('master-empresa-email').value;
+        const pass = document.getElementById('master-empresa-pass').value;
+
+        setLoading(true, "A provisionar banco de dados na Cloud...");
+        try {
+            // Cria o usuário na Auth Secundária (Permite registar sem deslogar o painel Master)
+            const res = await secondaryApp.auth().createUserWithEmailAndPassword(email, pass);
+            const uid = res.user.uid;
+            
+            // Salva os metadados da empresa numa coleção isolada
+            await db.collection('empresas').doc(uid).set({
+                nome: nome,
+                email: email,
+                criado_em: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            await secondaryApp.auth().signOut();
+
+            showToast("Banco de dados criado com sucesso!", "success");
+            e.target.reset();
+            loadEmpresas();
+        } catch (error) {
+            console.error(error);
+            showToast("Erro: E-mail já utilizado ou senha demasiado curta.", "error");
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    window.impersonate = function(id, nome) {
+        sessionStorage.setItem('impersonating', id);
+        sessionStorage.setItem('impersonating_name', nome);
+        window.location.reload();
+    }
+
+    window.exitImpersonation = function() {
+        sessionStorage.removeItem('impersonating');
+        sessionStorage.removeItem('impersonating_name');
+        window.location.reload();
+    }
 
     // =========================================================================
     // SISTEMA DE NOTIFICAÇÕES EM TEMPO REAL (PUSH E SOM)
