@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="pt-PT" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Utilização - Gestão Beauty</title>
+    <link rel="icon" href="https://firebasestorage.googleapis.com/v0/b/gestao-salao-app-84325.firebasestorage.app/o/GEST%C3%83O-BEAUTY.ico?alt=media&token=54c1047b-f803-43a3-a0cb-49d91ce75bc4" type="image/x-icon">
+    
+    <!-- Bibliotecas de UI -->
+    <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { font-family: 'DM Sans', sans-serif; }
+        html { scroll-behavior: smooth; }
+        .fade-in { animation: fadeIn 0.5s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Estilização para o sidebar ficar fixo em desktop */
+        @media (min-width: 768px) {
+            .sidebar-sticky {
+                position: sticky;
+                top: 2rem;
+                height: calc(100vh - 4rem);
+                overflow-y: auto;
+            }
+        }
+    </style>
+</head>
+<body class="h-full bg-[#f8f6f3] text-gray-800">
+
+    <!-- Cabeçalho -->
+    <header class="bg-gradient-to-r from-[#c41e3a] to-[#a01729] text-white py-6 shadow-md sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-4 md:px-6 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-white rounded-full flex items-center justify-center p-0.5 shadow-sm">
+                    <img src="https://firebasestorage.googleapis.com/v0/b/gestao-salao-app-84325.firebasestorage.app/o/GEST%C3%83O-BEAUTY.ico?alt=media&token=54c1047b-f803-43a3-a0cb-49d91ce75bc4" alt="Gestão Beauty" class="w-full h-full object-contain rounded-full">
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold">Manual de Utilização</h1>
+                    <p class="text-xs md:text-sm text-pink-100">Gestão Beauty ERP</p>
+                </div>
+            </div>
+            <a href="index.html" class="flex items-center gap-2 bg-white/20 hover:bg-white/30 px-4 py-2 rounded-lg text-sm font-bold transition">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> <span class="hidden md:inline">Voltar ao Sistema</span>
+            </a>
+        </div>
+    </header>
+
+    <div class="max-w-6xl mx-auto px-4 md:px-6 py-8 flex flex-col md:flex-row gap-8">
+        
+        <!-- Menu Lateral (Índice) -->
+        <aside class="w-full md:w-1/4 sidebar-sticky">
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-200">
+                <h3 class="font-bold text-lg mb-4 text-gray-900 border-b pb-2">Índice</h3>
+                <nav class="space-y-2 text-sm font-medium">
+                    <a href="#intro" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">Introdução</a>
+                    <a href="#acesso" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">1. Acesso Inicial</a>
+                    <a href="#dashboard" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">2. Dashboard</a>
+                    <a href="#cadastros" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">3. Cadastros (Equipa e Serviços)</a>
+                    <a href="#clientes" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">4. Gestão de Clientes</a>
+                    <a href="#agendamentos" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">5. Agendamentos</a>
+                    <a href="#baixa" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">6. Dar Baixa e Fiado</a>
+                    <a href="#financeiro" class="block text-gray-600 hover:text-[#c41e3a] hover:bg-pink-50 p-2 rounded-lg transition">7. Financeiro e Estoque</a>
+                </nav>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="w-full md:w-3/4 space-y-8 pb-16 fade-in">
+            
+            <section id="intro" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-3xl font-bold mb-4 text-gray-900 flex items-center gap-3">
+                    <i data-lucide="book-open" class="text-[#c41e3a]"></i> Bem-vindo!
+                </h2>
+                <p class="text-gray-600 leading-relaxed mb-4">
+                    Este manual foi criado para ajudar a sua equipa a dominar o <strong>Gestão Beauty</strong> rapidamente, desde a configuração inicial até ao agendamento e controlo financeiro. Utilize o menu lateral para navegar entre os tópicos.
+                </p>
+            </section>
+
+            <section id="acesso" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">1. Acesso e Configuração Inicial</h2>
+                
+                <h3 class="font-bold text-lg mt-6 mb-2">Como Entrar no Sistema</h3>
+                <p class="text-gray-600 leading-relaxed mb-3">O Gestão Beauty possui duas áreas distintas:</p>
+                <ul class="list-disc pl-6 space-y-2 text-gray-600 mb-4">
+                    <li><strong>Visão do Cliente (Pública):</strong> Onde os clientes fazem agendamentos de forma autónoma.</li>
+                    <li><strong>Acesso Restrito (Admin):</strong> Onde você gere o salão.</li>
+                </ul>
+                <p class="text-gray-600 leading-relaxed mb-3">Para entrar como administrador, insira o seu e-mail e palavra-passe na tela de login. Se é a primeira vez, clique em "Cadastre-se" na parte inferior da tela de login.</p>
+
+                <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl mt-6">
+                    <h4 class="font-bold text-indigo-800 flex items-center gap-2 mb-2"><i data-lucide="smartphone" class="w-4 h-4"></i> Instalar como Aplicação (App)</h4>
+                    <p class="text-sm text-indigo-700">Para facilitar o acesso, pode instalar o sistema no seu telemóvel:</p>
+                    <ul class="list-disc pl-5 mt-2 text-sm text-indigo-700">
+                        <li><strong>Android (Chrome):</strong> Toque nos 3 pontos verticais (canto superior direito) > "Adicionar ao ecrã principal".</li>
+                        <li><strong>iOS (Safari):</strong> Toque no ícone de partilha (quadrado com seta) > "Ecrã principal".</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="dashboard" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">2. O Dashboard (Painel Principal)</h2>
+                <p class="text-gray-600 leading-relaxed mb-4">Logo após o login, verá o Dashboard. Esta é a sua central de comando.</p>
+                <ul class="space-y-4 text-gray-600">
+                    <li class="flex gap-3"><i data-lucide="check-circle-2" class="text-green-500 flex-shrink-0 mt-1 w-5 h-5"></i> <span><strong>Banner Superior:</strong> Contém o botão <em>Copiar Link de Agendamento</em>. É este link que deve enviar aos clientes ou colocar no Instagram.</span></li>
+                    <li class="flex gap-3"><i data-lucide="check-circle-2" class="text-green-500 flex-shrink-0 mt-1 w-5 h-5"></i> <span><strong>Indicadores Rápidos:</strong> Resumo do faturamento do mês, total de agendamentos, serviços e profissionais ativos.</span></li>
+                    <li class="flex gap-3"><i data-lucide="check-circle-2" class="text-green-500 flex-shrink-0 mt-1 w-5 h-5"></i> <span><strong>Próximos Agendamentos:</strong> Uma lista rápida de quem vem hoje ao salão.</span></li>
+                    <li class="flex gap-3"><i data-lucide="check-circle-2" class="text-green-500 flex-shrink-0 mt-1 w-5 h-5"></i> <span><strong>Atalhos Rápidos:</strong> Botões à direita para executar ações comuns sem precisar mudar de aba.</span></li>
+                </ul>
+            </section>
+
+            <section id="cadastros" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">3. Cadastros Base (Serviços e Equipa)</h2>
+                <p class="text-gray-600 leading-relaxed mb-6">Antes de começar a agendar, o sistema precisa de saber <strong>o que</strong> o salão faz e <strong>quem</strong> o faz.</p>
+
+                <h3 class="font-bold text-lg mb-2">A. Criar Serviços</h3>
+                <ol class="list-decimal pl-6 space-y-2 text-gray-600 mb-6">
+                    <li>Vá à aba <strong>Serviços</strong> e clique em <em>Novo Serviço</em>.</li>
+                    <li>Preencha o nome (ex: Corte Feminino), a duração estimada e o preço.</li>
+                    <li>Clique em Salvar.</li>
+                </ol>
+
+                <h3 class="font-bold text-lg mb-2">B. Criar Profissionais</h3>
+                <ol class="list-decimal pl-6 space-y-2 text-gray-600">
+                    <li>Vá à aba <strong>Equipe</strong> e clique em <em>Novo Profissional</em>.</li>
+                    <li><strong>Serviços Realizados:</strong> Marque na lista de checkboxes quais os serviços que este profissional sabe fazer. Isso afeta o agendamento online.</li>
+                    <li><strong>Horário Base:</strong> Defina os dias da semana em que trabalha e as horas (ex: Seg-Sex das 09:00 às 18:00).</li>
+                    <li><strong>Bloqueios (Exceções):</strong> Use o botão "+ Adicionar Dia/Horário Bloqueado" para adicionar idas ao médico, férias ou horários de almoço variáveis.</li>
+                </ol>
+            </section>
+
+            <section id="clientes" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">4. Gestão de Clientes</h2>
+                
+                <h3 class="font-bold text-lg mb-2 mt-4">Ficha do Cliente</h3>
+                <p class="text-gray-600 leading-relaxed mb-3">Na aba <strong>Clientes</strong>, encontra toda a sua base de dados. Pode usar a barra de pesquisa para encontrar alguém pelo nome ou CPF.</p>
+                <p class="text-gray-600 leading-relaxed mb-4">Ao clicar em <strong>Ver Ficha</strong>, terá acesso a:</p>
+                <ul class="list-disc pl-6 space-y-2 text-gray-600 mb-6">
+                    <li>Dados de contacto e endereço.</li>
+                    <li><strong>Histórico completo</strong> de visitas ao salão.</li>
+                    <li>Avisos em vermelho caso o cliente tenha valores <strong>pendentes (Fiado)</strong>, permitindo dar baixa diretamente pela ficha.</li>
+                </ul>
+
+                <h3 class="font-bold text-lg mb-2">Aba Aniversariantes</h3>
+                <p class="text-gray-600 leading-relaxed">O sistema agrupa automaticamente todos os clientes que fazem anos no mês atual. Clique no ícone do WhatsApp verde ao lado do nome de um aniversariante para abrir uma conversa com uma mensagem de parabéns pré-escrita.</p>
+            </section>
+
+            <section id="agendamentos" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">5. Agendamentos</h2>
+                
+                <h3 class="font-bold text-lg mt-4 mb-2">Online (Pelo Cliente)</h3>
+                <p class="text-gray-600 leading-relaxed mb-4">O cliente acede ao link, escolhe a data, o serviço e o profissional. O sistema <strong>calcula automaticamente</strong> as horas disponíveis, ignorando folgas, marcações existentes e bloqueios do profissional. Receberá uma notificação sonora e visual quando um agendamento entrar.</p>
+
+                <h3 class="font-bold text-lg mb-2">Manual (Pelo Admin)</h3>
+                <ol class="list-decimal pl-6 space-y-2 text-gray-600 mb-4">
+                    <li>Na aba <strong>Agenda</strong>, clique em <em>Nova Marcação</em>.</li>
+                    <li>Comece a digitar o nome do cliente. O sistema vai sugerir os nomes da base de dados. Clique num para preencher automaticamente o telemóvel.</li>
+                    <li>Escolha o serviço, profissional, data e hora.</li>
+                    <li>Clique em <em>Salvar na Cloud</em>.</li>
+                </ol>
+                <div class="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 items-start">
+                    <i data-lucide="info" class="w-5 h-5 text-blue-500 mt-0.5"></i>
+                    <p class="text-sm text-blue-800">Após agendar manualmente, aparecerá a opção de guardar esse agendamento diretamente no seu <strong>Google Calendar</strong>.</p>
+                </div>
+            </section>
+
+            <section id="baixa" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">6. Dar Baixa e Fiado</h2>
+                <p class="text-gray-600 leading-relaxed mb-4">Quando o serviço é realizado, precisa de registar o pagamento para atualizar o caixa.</p>
+
+                <ol class="list-decimal pl-6 space-y-3 text-gray-600 mb-6">
+                    <li>Vá à aba <strong>Agenda</strong>. Agendamentos não pagos estão marcados a amarelo ("Pendente").</li>
+                    <li>Clique no botão verde <strong>Dar Baixa</strong> ao lado do agendamento.</li>
+                    <li>Confirme ou altere o valor (caso tenha dado um desconto).</li>
+                    <li>Escolha o método de pagamento (PIX, Dinheiro, Cartão, etc.).</li>
+                    <li>Clique em <em>Confirmar Pagamento</em>. O status muda para verde ("Pago") e uma receita é criada no Financeiro.</li>
+                </ol>
+
+                <h3 class="font-bold text-lg mb-2 text-red-600">Lidar com Fiado</h3>
+                <p class="text-gray-600 leading-relaxed">Se o cliente for pagar depois, no passo 4 escolha a opção <strong>"Fiado (Pagar depois)"</strong>. O agendamento ficará a vermelho. Quando o cliente vier pagar, volte à Agenda ou Ficha do Cliente e clique no botão vermelho <strong>Receber Fiado</strong> para lançar o dinheiro no caixa.</p>
+            </section>
+
+            <section id="financeiro" class="bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-gray-200">
+                <h2 class="text-2xl font-bold mb-4 text-[#c41e3a] border-b pb-2">7. Módulo Financeiro e Estoque</h2>
+                
+                <h3 class="font-bold text-lg mt-4 mb-2">Financeiro</h3>
+                <p class="text-gray-600 leading-relaxed mb-3">Na aba <strong>Financeiro</strong> gere o fluxo de caixa.</p>
+                <ul class="list-disc pl-6 space-y-2 text-gray-600 mb-6">
+                    <li>As receitas são criadas automaticamente ao dar baixa na agenda.</li>
+                    <li>Use <strong>Nova Despesa</strong> para registar pagamentos a fornecedores.</li>
+                    <li>Nas despesas, pode parcelar contas e <strong>anexar ficheiros PDF ou Imagens</strong> de boletos e comprovativos de pagamento.</li>
+                    <li>Utilize os filtros superiores (por nome, método ou data) para verificar totais de contas a pagar/receber num período.</li>
+                </ul>
+
+                <h3 class="font-bold text-lg mb-2">Estoque (Inventário)</h3>
+                <p class="text-gray-600 leading-relaxed mb-3">Registe os seus produtos (ex: Shampoos) clicando em <strong>Adicionar Item</strong>, definindo o saldo atual e a Qtd Mínima. Se o saldo for inferior à Qtd Mínima, o texto ficará vermelho.</p>
+                <p class="text-gray-600 leading-relaxed">Para renovar o estoque, clique em <strong>Registrar Compra</strong>. Pode selecionar o fornecedor da compra e o sistema guardará a data e quantidade adquirida no histórico do item.</p>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Rodapé -->
+    <footer class="bg-white border-t border-gray-200 py-6 mt-auto">
+        <div class="max-w-6xl mx-auto px-4 md:px-6 text-center text-sm text-gray-500">
+            <p>&copy; <script>document.write(new Date().getFullYear())</script> Gestão Beauty ERP. Todos os direitos reservados.</p>
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
