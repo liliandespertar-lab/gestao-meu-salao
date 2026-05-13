@@ -50,9 +50,10 @@
 </head>
 <body class="h-full bg-gradient-to-br from-[#f8f6f3] to-[#ede9e6] overflow-auto">
     <!-- Ecrã de Carregamento -->
-    <div id="loader" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white">
+    <div id="loader" onclick="this.classList.add('hidden')" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white cursor-pointer" title="Clique em qualquer lado para forçar o fecho caso a internet falhe">
         <div class="spinner mb-4"></div>
         <p class="font-medium" id="loader-text">A ligar à base de dados...</p>
+        <p class="text-xs text-gray-300 mt-4 opacity-70 font-normal">Clique na tela para forçar fecho caso demore</p>
     </div>
 
     <!-- ================= VIEW DE LOGIN (ADMIN) ================= -->
@@ -264,6 +265,10 @@
                     <button onclick="copyClientLink()" class="hidden md:flex items-center gap-2 bg-white text-[#c41e3a] px-3 py-2 rounded-full text-sm font-bold hover:bg-red-50 transition shadow-sm">
                         <i data-lucide="link" class="w-4 h-4"></i> Link Público
                     </button>
+                    <!-- Novo botão de Ajuda -->
+                    <a href="tutorial.html" target="_blank" class="hidden lg:flex items-center gap-2 bg-white/20 text-white px-3 py-2 rounded-full text-sm font-bold hover:bg-white/30 transition shadow-sm ml-2">
+                        <i data-lucide="help-circle" class="w-4 h-4"></i> Ajuda
+                    </a>
                     <!-- Botão logout desktop original -->
                     <button onclick="logout()" class="hidden md:flex items-center gap-2 bg-red-900/40 text-white px-4 py-2 rounded-full text-sm font-bold hover:bg-red-900/60 transition shadow-sm ml-2">
                         <i data-lucide="log-out" class="w-4 h-4"></i> Sair do Sistema
@@ -353,6 +358,10 @@
                             <button onclick="showForm('agendamento')" class="w-full text-left px-4 py-3 rounded-lg bg-pink-50 hover:bg-pink-100 text-[#c41e3a] font-bold text-sm transition flex items-center gap-2 border border-pink-100"> 
                                 <i data-lucide="plus-circle" class="w-4 h-4"></i> Novo Agendamento 
                             </button> 
+                            <!-- Adicionado atalho para o tutorial na Dashboard -->
+                            <a href="tutorial.html" target="_blank" class="w-full text-left px-4 py-3 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold text-sm transition flex items-center gap-2 border border-gray-200 block"> 
+                                <i data-lucide="book-open" class="w-4 h-4"></i> Ler Manual (Tutorial)
+                            </a> 
                             <button onclick="showForm('receita')" class="w-full text-left px-4 py-3 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 font-bold text-sm transition flex items-center gap-2 border border-green-100"> 
                                 <i data-lucide="plus-circle" class="w-4 h-4"></i> Lançar Receita 
                             </button> 
@@ -1000,6 +1009,7 @@
         setLoading(true, "A autenticar...");
         try {
             await auth.signInWithEmailAndPassword(email, pass);
+            setTimeout(() => setLoading(false), 2000); // Garante que o loading sai se a transição demorar
         } catch (error) {
             if ((email === 'admin' || email === 'admin@gestao.com') && pass === 'admin123') {
                 sessionStorage.setItem('admin_logged_in', 'true');
@@ -1026,6 +1036,7 @@
         try {
             await auth.createUserWithEmailAndPassword(email, pass);
             showToast("Conta criada com sucesso!", "success");
+            setLoading(false);
         } catch (error) {
             console.error(error);
             showToast("Erro: E-mail inválido, já existe ou senha fraca.", "error");
