@@ -661,6 +661,26 @@
 
     // --- OUVINTE DE ESTADO DE AUTENTICAÇÃO ---
     auth.onAuthStateChanged(user => {
+        // =========================================================
+        // CORREÇÃO IMPORTANTE:
+        // Se a URL for pública (?view=cliente), o sistema deve abrir
+        // SEMPRE a tela de Agendamento Online, mesmo que exista uma
+        // sessão Master/Admin ativa no mesmo navegador.
+        // =========================================================
+        if (isClientView) {
+            currentUserId = urlSalonId;
+
+            document.getElementById('login-view')?.classList.add('hidden');
+            document.getElementById('admin-view')?.classList.add('hidden');
+            document.getElementById('master-view')?.classList.add('hidden');
+            document.getElementById('client-view')?.classList.remove('hidden');
+
+            setupClientView();
+            filterAndRenderData();
+            setLoading(false);
+            return;
+        }
+
         if (user) {
             // VERIFICAÇÃO DO UTILIZADOR MASTER
             if (user.email === 'master@gestaobeauty.com' && !sessionStorage.getItem('impersonating')) {
@@ -668,6 +688,7 @@
                 sessionStorage.setItem('admin_logged_in', 'true');
                 document.getElementById('login-view').classList.add('hidden');
                 document.getElementById('admin-view').classList.add('hidden');
+                document.getElementById('client-view').classList.add('hidden');
                 document.getElementById('master-view').classList.remove('hidden');
                 loadEmpresas();
                 setLoading(false);
@@ -677,6 +698,7 @@
                 sessionStorage.setItem('admin_logged_in', 'true');
                 document.getElementById('login-view').classList.add('hidden');
                 document.getElementById('master-view').classList.add('hidden');
+                document.getElementById('client-view').classList.add('hidden');
                 document.getElementById('admin-view').classList.remove('hidden');
                 
                 // Exibe o banner de aviso se o Master estiver dentro de um salão
@@ -698,6 +720,7 @@
                 currentUserId = 'admin_default';
                 document.getElementById('login-view').classList.add('hidden');
                 document.getElementById('master-view').classList.add('hidden');
+                document.getElementById('client-view').classList.add('hidden');
                 document.getElementById('admin-view').classList.remove('hidden');
                 switchTabAdmin('dashboard');
                 filterAndRenderData();
@@ -707,6 +730,8 @@
                 if (!isClientView) {
                     document.getElementById('login-view').classList.remove('hidden');
                     document.getElementById('admin-view').classList.add('hidden');
+                    document.getElementById('master-view').classList.add('hidden');
+                    document.getElementById('client-view').classList.add('hidden');
                 }
                 setLoading(false);
             }
@@ -1140,9 +1165,27 @@
     }
 
     function copyClientLink() {
-        const link = window.location.origin + window.location.pathname + '?view=cliente&salon=' + currentUserId;
-        const i = document.createElement("input"); i.value = link; document.body.appendChild(i); i.select(); document.execCommand("copy"); document.body.removeChild(i);
-        showToast("Link copiado! Cole no WhatsApp.", "success");
+        // Quando a Master estiver a aceder aos dados de uma empresa,
+        // o link público precisa usar o ID da empresa impersonada,
+        // e não o UID da conta Master.
+        const salonId = sessionStorage.getItem('impersonating') || currentUserId || 'admin_default';
+
+        const url = new URL(window.location.href);
+        url.search = '';
+        url.hash = '';
+        url.searchParams.set('view', 'cliente');
+        url.searchParams.set('salon', salonId);
+
+        const link = url.toString();
+
+        const i = document.createElement("input");
+        i.value = link;
+        document.body.appendChild(i);
+        i.select();
+        document.execCommand("copy");
+        document.body.removeChild(i);
+
+        showToast("Link de agendamento copiado! Cole no WhatsApp ou Instagram.", "success");
     }
 
     function switchTabAdmin(tab) {
