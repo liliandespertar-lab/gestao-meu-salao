@@ -2666,22 +2666,44 @@
 
         // --- PREPARAÇÃO DO AGENDAMENTO (ADMIN) ---
         if(currentFormType === 'agendamento') { 
-            data.origem = 'Manual Admin'; data.status = 'pendente'; 
+            data.origem = 'Manual Admin';
+            data.status = 'pendente'; 
             data.requisicao = generateRequisicao();
-            const phone = fd.get('phone').replace(/\D/g, ''); fd.set('phone', phone);
-            
-            const clienteExists = allData.find(d => d.type === 'cliente' && d.nome === fd.get('client_name'));
+
+            // IMPORTANTE: no agendamento manual, estes campos precisam existir em data
+            // ANTES da validação de disponibilidade. Antes eles só eram copiados no fd.forEach
+            // depois da validação, deixando data.date, data.time e data.profissional_id vazios
+            // e fazendo todos os horários caírem como conflito.
+            data.client_name = fd.get('client_name');
+            data.phone = String(fd.get('phone') || '').replace(/\D/g, '');
+            data.service_id = fd.get('service_id');
+            data.profissional_id = fd.get('profissional_id');
+            data.date = fd.get('date');
+            data.time = fd.get('time');
+
+            const clienteExists = allData.find(d => d.type === 'cliente' && d.nome === data.client_name);
             if (!clienteExists) { showToast("Erro: Cliente não cadastrado.", "error"); return; }
+            if (!data.service_id || !data.profissional_id || !data.date || !data.time) {
+                showToast('Preencha serviço, profissional, data e horário.', 'error');
+                return;
+            }
             
             const srvSel = document.getElementById('admin-appt-service');
             const profSel = document.getElementById('admin-appt-prof');
+            const selectedServiceOption = srvSel.options[srvSel.selectedIndex];
+            const selectedProfOption = profSel.options[profSel.selectedIndex];
             
-            data.service_name = srvSel.options[srvSel.selectedIndex].dataset.name;
-            data.service_price = srvSel.options[srvSel.selectedIndex].dataset.price || 0;
-            data.service_duration = parseInt(srvSel.options[srvSel.selectedIndex].dataset.duration || 30, 10) || 30;
-            data.profissional = profSel.options[profSel.selectedIndex].dataset.name;
+            data.service_name = selectedServiceOption?.dataset?.name || selectedServiceOption?.textContent || '';
+            data.service_price = selectedServiceOption?.dataset?.price || 0;
+            data.service_duration = parseInt(selectedServiceOption?.dataset?.duration || 30, 10) || 30;
+            data.profissional = selectedProfOption?.dataset?.name || selectedProfOption?.textContent || '';
 
             const prof = allData.find(d => d.__backendId === data.profissional_id);
+            if (!prof) {
+                showToast('Profissional não encontrado. Selecione novamente.', 'error');
+                return;
+            }
+
             data.setup_buffer_minutes = getProfessionalSetupBuffer(prof);
             const dayOfWeek = new Date(data.date + 'T12:00:00').getDay();
             const base = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : { ativo: true, inicio: '09:00', fim: '19:00' };
@@ -2709,6 +2731,7 @@
 
         fd.forEach((v, k) => {
             // Ignorar arrays de exceções processados manualmente
+            // No agendamento manual, os campos principais já foram copiados acima antes da validação.
             if(!k.includes('[]')) data[k] = v;
         });
         
