@@ -962,6 +962,46 @@
             .sort();
     }
 
+
+    function getDateSpecificSlotRows(prof, date) {
+        if (!prof || !date) return [];
+
+        // Compatibilidade com variações de nomes usadas em versões anteriores.
+        const possibleSources = [
+            prof.horariosLivresDatas,
+            prof.horariosExtrasDatas,
+            prof.horariosLiberadosDatas,
+            prof.horariosDisponiveisDatas,
+            prof.liberacoesHorarios,
+            prof.liberacoes_horarios,
+            prof.horarios_livres_datas
+        ].filter(Array.isArray);
+
+        return possibleSources
+            .flat()
+            .filter(row => row && (row.date || row.data || row.dia) === date);
+    }
+
+    function getDateSpecificFreeSlots(prof, date) {
+        return [...new Set(getDateSpecificSlotRows(prof, date).flatMap(row => normalizeSlotList(
+            row.slots || row.horarios || row.times || row.horariosLivres || row.horarios_livres || row.lista || ''
+        )))].sort();
+    }
+
+    function isDateSpecificFreeSlot(prof, date, timeStr) {
+        return getDateSpecificFreeSlots(prof, date).includes(timeStr);
+    }
+
+    function getAvailabilityWindowForSlot(prof, dayOfWeek, date, timeStr, base) {
+        // Horário extra liberado para uma data específica deve ser respeitado mesmo que esteja fora da base semanal.
+        // A base semanal continua valendo para horários automáticos/pré-determinados.
+        if (isDateSpecificFreeSlot(prof, date, timeStr)) {
+            return { startTime: '00:00', endTime: '23:59', isExtra: true };
+        }
+        const safeBase = base || (prof && prof.horarios && prof.horarios[dayOfWeek]) || { ativo: true, inicio: '09:00', fim: '19:00' };
+        return { startTime: safeBase.inicio || '09:00', endTime: safeBase.fim || '19:00', isExtra: false };
+    }
+
     function parseNonNegativeMinutes(value, fallback) {
         const parsed = parseInt(value, 10);
         return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
@@ -985,9 +1025,7 @@
     function getProfessionalFreeSlots(prof, dayOfWeek, startTime = '09:00', endTime = '19:00', date = '') {
         // Horários pré-determinados e liberações por data trabalham juntos.
         // A liberação por data ADICIONA horários extras; ela não substitui os horários já configurados.
-        const dateRows = Array.isArray(prof?.horariosLivresDatas) ? prof.horariosLivresDatas : [];
-        const rowsForDate = dateRows.filter(row => row && row.date === date);
-        const dateSpecificSlots = rowsForDate.flatMap(row => normalizeSlotList(row.slots || row.horarios || row.times || ''));
+        const dateSpecificSlots = getDateSpecificFreeSlots(prof, date);
 
         // Compatibilidade com a versão anterior: horários livres semanais/pré-determinados.
         const savedSlots = prof && prof.horariosLivres && prof.horariosLivres[dayOfWeek]
@@ -1162,7 +1200,8 @@
             endTime = prof.horarios[dayOfWeek].fim || "19:00";
         }
 
-        if (!isWorkingDay) {
+        const dateExtraSlots = getDateSpecificFreeSlots(prof, date);
+        if (!isWorkingDay && dateExtraSlots.length === 0) {
             slotsDiv.innerHTML = '<div class="col-span-full text-center text-sm text-red-500 font-bold p-4 bg-red-50 rounded-xl border border-red-100"><i data-lucide="calendar-x" class="w-5 h-5 inline mr-1"></i> Profissional folga neste dia da semana.</div>';
             try { lucide.createIcons(); } catch(e){}
             return;
@@ -1179,15 +1218,16 @@
         // A disponibilidade, porém, considera a duração real do serviço + o tempo de preparo configurado para o profissional.
         const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, startTime, endTime, date);
         const slots = freeTimes.map(timeStr => {
+            const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, timeStr, { ativo: isWorkingDay, inicio: startTime, fim: endTime });
             const isBooked = !isSlotAvailableForService(timeStr, selectedDuration, {
-                startTime,
-                endTime,
+                startTime: slotWindow.startTime,
+                endTime: slotWindow.endTime,
                 dateExceptions,
                 bookings: dbBookings,
                 cartItems: cartBookings,
                 buffer: setupBuffer
             });
-            return { time: timeStr, booked: isBooked };
+            return { time: timeStr, booked: isBooked, extra: slotWindow.isExtra };
         });
 
         if(slots.length === 0 || slots.every(s => s.booked)) {
@@ -1281,9 +1321,12 @@
                 const otherCartItems = publicCart.filter(other => other !== item && other.profId === item.profId);
                 const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
                 const isConfiguredFreeTime = freeTimes.includes(item.time);
-                const stillAvailable = base.ativo !== false && isConfiguredFreeTime && isSlotAvailableForService(item.time, item.serviceDuration || 30, {
-                    startTime: base.inicio || '09:00',
-                    endTime: base.fim || '19:00',
+                const hasDateSpecificSlots = getDateSpecificFreeSlots(prof, date).length > 0;
+                const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, item.time, base);
+                const canUseThisDay = base.ativo !== false || hasDateSpecificSlots;
+                const stillAvailable = canUseThisDay && isConfiguredFreeTime && isSlotAvailableForService(item.time, item.serviceDuration || 30, {
+                    startTime: slotWindow.startTime,
+                    endTime: slotWindow.endTime,
                     dateExceptions,
                     bookings: dbBookings,
                     cartItems: otherCartItems,
@@ -1745,25 +1788,28 @@
         const viewFilter = viewFilterEl ? viewFilterEl.value : 'available';
         let configuredTimes = [];
         let freeTimes = [];
-        if(base.ativo !== false) {
+        const dateExtraSlots = getDateSpecificFreeSlots(prof, date);
+        if(base.ativo !== false || dateExtraSlots.length > 0) {
             configuredTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
-            freeTimes = configuredTimes.filter(t => isAllServicesView
-                ? isSlotFreeAtMoment(t, {
-                    startTime: base.inicio || '09:00',
-                    endTime: base.fim || '19:00',
-                    dateExceptions,
-                    bookings,
-                    cartItems: []
-                })
-                : isSlotAvailableForService(t, selectedDuration, {
-                    startTime: base.inicio || '09:00',
-                    endTime: base.fim || '19:00',
-                    dateExceptions,
-                    bookings,
-                    cartItems: [],
-                    buffer: setupBuffer
-                })
-            );
+            freeTimes = configuredTimes.filter(t => {
+                const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, t, base);
+                return isAllServicesView
+                    ? isSlotFreeAtMoment(t, {
+                        startTime: slotWindow.startTime,
+                        endTime: slotWindow.endTime,
+                        dateExceptions,
+                        bookings,
+                        cartItems: []
+                    })
+                    : isSlotAvailableForService(t, selectedDuration, {
+                        startTime: slotWindow.startTime,
+                        endTime: slotWindow.endTime,
+                        dateExceptions,
+                        bookings,
+                        cartItems: [],
+                        buffer: setupBuffer
+                    });
+            });
         }
 
         const unavailableTimes = configuredTimes.filter(t => !freeTimes.includes(t));
@@ -1792,7 +1838,7 @@
 
         let horariosTitulo = isAllServicesView ? 'Todos os horários disponíveis no dia' : `Horários disponíveis no dia para ${serviceLabel}`;
         let livresHtml = '';
-        if (base.ativo === false) {
+        if (base.ativo === false && dateExtraSlots.length === 0) {
             livresHtml = '<p class="text-sm text-red-500 font-bold bg-red-50 border border-red-100 rounded-xl p-4">Este profissional está marcado como folga neste dia da semana.</p>';
         } else if (viewFilter === 'booked') {
             horariosTitulo = 'Filtro aplicado: somente horários agendados';
@@ -2643,9 +2689,12 @@
             const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === data.date && d.profissional_id === data.profissional_id && d.status !== 'cancelado');
             const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', data.date);
             const isConfiguredFreeTime = freeTimes.includes(data.time);
-            const horarioDisponivel = base.ativo !== false && isConfiguredFreeTime && isSlotAvailableForService(data.time, data.service_duration, {
-                startTime: base.inicio || '09:00',
-                endTime: base.fim || '19:00',
+            const hasDateSpecificSlots = getDateSpecificFreeSlots(prof, data.date).length > 0;
+            const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, data.date, data.time, base);
+            const canUseThisDay = base.ativo !== false || hasDateSpecificSlots;
+            const horarioDisponivel = canUseThisDay && isConfiguredFreeTime && isSlotAvailableForService(data.time, data.service_duration, {
+                startTime: slotWindow.startTime,
+                endTime: slotWindow.endTime,
                 dateExceptions,
                 bookings: dbBookings,
                 cartItems: [],
