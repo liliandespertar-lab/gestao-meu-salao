@@ -1036,7 +1036,11 @@
 
         // Compatibilidade com profissionais sem horários salvos: gera opções dentro do horário base.
         // Agora o intervalo é configurável por profissional.
-        if (baseSlots.length === 0) {
+        // CORREÇÃO: se o dia semanal estiver marcado como folga, não devemos recriar a base automática
+        // quando houver horário extra por data. Nesse caso, valem apenas os extras cadastrados naquela data.
+        const weeklyBase = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : null;
+        const weeklyBaseActive = !weeklyBase || weeklyBase.ativo !== false;
+        if (baseSlots.length === 0 && weeklyBaseActive) {
             baseSlots = [];
             const start = timeToMinutes(startTime);
             const end = timeToMinutes(endTime);
@@ -1143,6 +1147,47 @@
         }
 
         return true;
+    }
+
+
+    function getSlotAvailabilityDetails(timeStr, duration, options = {}) {
+        const startMins = timeToMinutes(timeStr);
+        const buffer = parseNonNegativeMinutes(options.buffer ?? DEFAULT_SETUP_BUFFER_MINUTES, DEFAULT_SETUP_BUFFER_MINUTES);
+        const parsedDuration = parseInt(duration, 10) || 30;
+        const endMins = startMins + parsedDuration + buffer;
+        const startLimit = timeToMinutes(options.startTime || '00:00');
+        const endLimit = timeToMinutes(options.endTime || '23:59');
+
+        if (startMins < startLimit) {
+            return { ok: false, reason: `O horário começa antes da jornada liberada (${options.startTime || '00:00'}).` };
+        }
+        if (endMins > endLimit) {
+            return { ok: false, reason: `O atendimento terminaria às ${minutesToTime(endMins)}, após o limite liberado (${options.endTime || '23:59'}).` };
+        }
+        if (isIntervalBlockedByException(startMins, endMins, options.dateExceptions || [])) {
+            return { ok: false, reason: 'O período pega um bloqueio cadastrado para essa data.' };
+        }
+
+        const bookings = options.bookings || [];
+        for (let b of bookings) {
+            const busy = getBookingBusyInterval(b);
+            if (intervalsOverlap(startMins, endMins, busy.start, busy.end)) {
+                return {
+                    ok: false,
+                    reason: `Conflita com ${b.client_name || 'cliente'} às ${b.time || ''} (${minutesToTime(busy.start)}-${minutesToTime(busy.end)}, incluindo preparo).`
+                };
+            }
+        }
+
+        const cartItems = options.cartItems || [];
+        for (let item of cartItems) {
+            const busy = getCartBusyInterval(item);
+            if (intervalsOverlap(startMins, endMins, busy.start, busy.end)) {
+                return { ok: false, reason: `Conflita com outro serviço selecionado no carrinho às ${item.time || ''}.` };
+            }
+        }
+
+        return { ok: true, reason: '' };
     }
 
     function isSlotFreeAtMoment(timeStr, options = {}) {
@@ -1793,15 +1838,16 @@
             configuredTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
             freeTimes = configuredTimes.filter(t => {
                 const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, t, base);
-                return isAllServicesView
-                    ? isSlotFreeAtMoment(t, {
-                        startTime: slotWindow.startTime,
-                        endTime: slotWindow.endTime,
-                        dateExceptions,
-                        bookings,
-                        cartItems: []
-                    })
-                    : isSlotAvailableForService(t, selectedDuration, {
+                if (isAllServicesView) {
+                    // Na visão TODOS, mostramos como disponível apenas o horário que comporta pelo menos
+                    // o menor serviço realizado por este profissional + o preparo. Assim evitamos que a agenda
+                    // marque como livre um ponto entre atendimentos que, na prática, não comporta nenhum serviço.
+                    const professionalServiceIds = Array.isArray(prof.servicos) ? prof.servicos : [];
+                    const candidateServices = servs.filter(s => professionalServiceIds.length === 0 || professionalServiceIds.includes(s.__backendId));
+                    const minDuration = candidateServices.length > 0
+                        ? Math.min(...candidateServices.map(s => parseInt(s.duration || 30, 10) || 30))
+                        : 30;
+                    return isSlotAvailableForService(t, minDuration, {
                         startTime: slotWindow.startTime,
                         endTime: slotWindow.endTime,
                         dateExceptions,
@@ -1809,6 +1855,15 @@
                         cartItems: [],
                         buffer: setupBuffer
                     });
+                }
+                return isSlotAvailableForService(t, selectedDuration, {
+                    startTime: slotWindow.startTime,
+                    endTime: slotWindow.endTime,
+                    dateExceptions,
+                    bookings,
+                    cartItems: [],
+                    buffer: setupBuffer
+                });
             });
         }
 
@@ -2631,8 +2686,8 @@
                 fd.delete(`dia_fim_${i}`);
             }
             data.horarios = horarios;
-            data.slot_interval_minutes = parseInt(fd.get('slot_interval_minutes') || DEFAULT_SLOT_INTERVAL_MINUTES, 10) || DEFAULT_SLOT_INTERVAL_MINUTES;
-            data.setup_buffer_minutes = parseInt(fd.get('setup_buffer_minutes') || DEFAULT_SETUP_BUFFER_MINUTES, 10) || DEFAULT_SETUP_BUFFER_MINUTES;
+            data.slot_interval_minutes = parseNonNegativeMinutes(fd.get('slot_interval_minutes'), DEFAULT_SLOT_INTERVAL_MINUTES) || DEFAULT_SLOT_INTERVAL_MINUTES;
+            data.setup_buffer_minutes = parseNonNegativeMinutes(fd.get('setup_buffer_minutes'), DEFAULT_SETUP_BUFFER_MINUTES);
             fd.delete('slot_interval_minutes');
             fd.delete('setup_buffer_minutes');
 
@@ -2714,7 +2769,17 @@
             const hasDateSpecificSlots = getDateSpecificFreeSlots(prof, data.date).length > 0;
             const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, data.date, data.time, base);
             const canUseThisDay = base.ativo !== false || hasDateSpecificSlots;
-            const horarioDisponivel = canUseThisDay && isConfiguredFreeTime && isSlotAvailableForService(data.time, data.service_duration, {
+            if (!canUseThisDay) {
+                showToast('Este profissional está em folga nesta data e não há horário extra liberado.', 'error');
+                return;
+            }
+
+            if (!isConfiguredFreeTime) {
+                showToast('Este horário não está na lista de horários liberados para essa data/profissional.', 'error');
+                return;
+            }
+
+            const disponibilidade = getSlotAvailabilityDetails(data.time, data.service_duration, {
                 startTime: slotWindow.startTime,
                 endTime: slotWindow.endTime,
                 dateExceptions,
@@ -2723,8 +2788,8 @@
                 buffer: data.setup_buffer_minutes
             });
 
-            if (!horarioDisponivel) {
-                showToast('Este horário não está liberado para essa data ou conflita com outro atendimento, bloqueio ou tempo de preparo.', 'error');
+            if (!disponibilidade.ok) {
+                showToast(disponibilidade.reason || 'Este horário conflita com outro atendimento, bloqueio ou tempo de preparo.', 'error');
                 return;
             }
         }
