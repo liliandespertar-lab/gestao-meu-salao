@@ -205,11 +205,11 @@
                     <div class="bg-gray-50 rounded-xl p-5 border border-gray-200 mb-6">
                         <h4 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2"><i data-lucide="plus-circle" class="w-4 h-4 text-[#c41e3a]"></i> Adicionar Serviço</h4>
                         <div class="space-y-3">
-                            <select id="public-service-select" onchange="updatePublicProfDropdown()" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
-                                <option value="">-- Selecione o serviço --</option>
+                            <select id="public-prof-select" onchange="updatePublicServiceDropdown()" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
+                                <option value="">-- 1. Selecione o Profissional --</option>
                             </select>
-                            <select id="public-prof-select" onchange="updatePublicSlots()" disabled class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
-                                <option value="">-- Selecione o Profissional --</option>
+                            <select id="public-service-select" onchange="updatePublicSlots()" disabled class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:ring-[#c41e3a] outline-none">
+                                <option value="">-- 2. Selecione o serviço --</option>
                             </select>
                             <div id="public-slots" class="grid grid-cols-4 sm:grid-cols-5 gap-2 mt-2"></div>
                         </div>
@@ -911,40 +911,54 @@
     };
 
     function populateClientServices() {
-        const servs = allData.filter(d => d.type === 'servico');
-        const selSrv = document.getElementById('public-service-select');
-        selSrv.innerHTML = '<option value="">-- Selecione o serviço --</option>' + servs.map(s => `<option value="${s.__backendId}">${s.name} (${s.duration||30}m) - R$ ${Number(s.price||0).toFixed(2)}</option>`).join('');
-        
+        // Fluxo público: primeiro o cliente escolhe o profissional; depois escolhe o serviço daquele profissional.
+        const profs = allData.filter(d => d.type === 'profissional').sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         const selPrf = document.getElementById('public-prof-select');
-        selPrf.innerHTML = '<option value="">-- Selecione o Profissional --</option>';
-        selPrf.disabled = true;
+        const selSrv = document.getElementById('public-service-select');
+
+        selPrf.disabled = false;
+        selPrf.innerHTML = '<option value="">-- 1. Selecione o Profissional --</option>' + profs.map(p => `<option value="${p.__backendId}">${p.name}</option>`).join('');
+
+        selSrv.innerHTML = '<option value="">-- 2. Selecione o serviço --</option>';
+        selSrv.disabled = true;
         document.getElementById('public-slots').innerHTML = '';
     }
 
-    window.updatePublicProfDropdown = function() {
-        const srvId = document.getElementById('public-service-select').value;
-        const selPrf = document.getElementById('public-prof-select');
+    window.updatePublicServiceDropdown = function() {
+        const profId = document.getElementById('public-prof-select').value;
+        const selSrv = document.getElementById('public-service-select');
         document.getElementById('public-slots').innerHTML = '';
-        
-        if(!srvId) {
-            selPrf.disabled = true;
-            selPrf.innerHTML = '<option value="">-- Selecione o Profissional --</option>';
+
+        if(!profId) {
+            selSrv.disabled = true;
+            selSrv.innerHTML = '<option value="">-- 2. Selecione o serviço --</option>';
             return;
         }
 
-        let profs = allData.filter(d => d.type === 'profissional' && d.servicos && d.servicos.includes(srvId));
-        if (profs.length === 0) profs = allData.filter(d => d.type === 'profissional'); 
+        const prof = allData.find(d => d.__backendId === profId);
+        let servs = [];
 
-        if(profs.length === 0) {
-            selPrf.innerHTML = '<option value="">Nenhum profissional cadastrado.</option>';
-            selPrf.disabled = true;
+        if (prof && Array.isArray(prof.servicos) && prof.servicos.length > 0) {
+            servs = allData.filter(d => d.type === 'servico' && prof.servicos.includes(d.__backendId));
+        } else {
+            // Compatibilidade: profissional antigo sem vínculo explícito de serviços.
+            servs = allData.filter(d => d.type === 'servico');
+        }
+
+        servs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+        if(servs.length === 0) {
+            selSrv.disabled = true;
+            selSrv.innerHTML = '<option value="">Nenhum serviço disponível para este profissional.</option>';
             return;
         }
 
-        selPrf.disabled = false;
-        selPrf.innerHTML = '<option value="">-- Escolha o Profissional --</option>' + profs.map(p => `<option value="${p.__backendId}">${p.name}</option>`).join('');
+        selSrv.disabled = false;
+        selSrv.innerHTML = '<option value="">-- 2. Selecione o serviço --</option>' + servs.map(s => `<option value="${s.__backendId}">${s.name} (${s.duration||30}m) - R$ ${Number(s.price||0).toFixed(2)}</option>`).join('');
     };
 
+    // Mantém compatibilidade caso algum botão antigo ainda chame esta função.
+    window.updatePublicProfDropdown = window.updatePublicServiceDropdown;
 
     function timeToMinutes(timeStr) {
         if(!timeStr || !timeStr.includes(':')) return 0;
@@ -1045,7 +1059,7 @@
             const start = timeToMinutes(startTime);
             const end = timeToMinutes(endTime);
             const interval = getProfessionalSlotInterval(prof);
-            for (let m = start; m < end; m += interval) {
+            for (let m = start; m <= end; m += interval) {
                 const hStr = String(Math.floor(m / 60)).padStart(2, '0');
                 const mStr = String(m % 60).padStart(2, '0');
                 baseSlots.push(`${hStr}:${mStr}`);
@@ -1131,7 +1145,9 @@
         const startLimit = timeToMinutes(options.startTime || '00:00');
         const endLimit = timeToMinutes(options.endTime || '23:59');
 
-        if (startMins < startLimit || endMins > endLimit) return false;
+        // O horário final configurado pelo profissional é tratado como o ÚLTIMO HORÁRIO DE INÍCIO disponível.
+        // Ex.: sexta 14:00 às 17:00 permite agendar às 17:00, mesmo que o serviço termine depois.
+        if (startMins < startLimit || startMins > endLimit) return false;
         if (isIntervalBlockedByException(startMins, endMins, options.dateExceptions || [])) return false;
 
         const bookings = options.bookings || [];
@@ -1161,8 +1177,8 @@
         if (startMins < startLimit) {
             return { ok: false, reason: `O horário começa antes da jornada liberada (${options.startTime || '00:00'}).` };
         }
-        if (endMins > endLimit) {
-            return { ok: false, reason: `O atendimento terminaria às ${minutesToTime(endMins)}, após o limite liberado (${options.endTime || '23:59'}).` };
+        if (startMins > endLimit) {
+            return { ok: false, reason: `O horário começa após o último horário liberado (${options.endTime || '23:59'}).` };
         }
         if (isIntervalBlockedByException(startMins, endMins, options.dateExceptions || [])) {
             return { ok: false, reason: 'O período pega um bloqueio cadastrado para essa data.' };
@@ -1197,7 +1213,7 @@
 
         // Usado na opção TODOS da Agenda dos Profissionais:
         // verifica se aquele ponto de horário está livre no dia, sem simular uma duração específica de serviço.
-        if (slotMins < startLimit || slotMins >= endLimit) return false;
+        if (slotMins < startLimit || slotMins > endLimit) return false;
         if (isSlotBlockedByException(timeStr, options.dateExceptions || [], 0, 0)) return false;
 
         const bookings = options.bookings || [];
@@ -1304,7 +1320,7 @@
         });
         
         document.getElementById('public-service-select').value = '';
-        updatePublicProfDropdown();
+        document.getElementById('public-slots').innerHTML = '';
         renderCart();
     };
 
