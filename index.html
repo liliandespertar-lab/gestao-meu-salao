@@ -1069,6 +1069,30 @@
         return [...new Set([...baseSlots, ...dateSpecificSlots])].sort();
     }
 
+
+    function getServiceBasedCandidateSlots(prof, dayOfWeek, startTime = '09:00', endTime = '19:00', date = '', duration = 30) {
+        // Para o agendamento, a grade deve nascer da duração do serviço escolhido.
+        // Ex.: Reiki 30min gera 08:00, 08:30, 09:00, 09:30...
+        // Massagem 60min gera 08:00, 09:00, 10:00...
+        // Os horários pré-determinados e extras da data continuam sendo somados, nunca substituídos.
+        const configuredSlots = getProfessionalFreeSlots(prof, dayOfWeek, startTime, endTime, date);
+        const dateSpecificSlots = getDateSpecificFreeSlots(prof, date);
+        const weeklyBase = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : null;
+        const weeklyBaseActive = !weeklyBase || weeklyBase.ativo !== false;
+        const step = Math.max(5, parseInt(duration, 10) || getProfessionalSlotInterval(prof) || 30);
+        const generated = [];
+
+        if (weeklyBaseActive) {
+            const start = timeToMinutes(startTime);
+            const end = timeToMinutes(endTime);
+            for (let m = start; m <= end; m += step) {
+                generated.push(minutesToTime(m));
+            }
+        }
+
+        return [...new Set([...generated, ...configuredSlots, ...dateSpecificSlots])].sort((a, b) => timeToMinutes(a) - timeToMinutes(b));
+    }
+
     function intervalsOverlap(startA, endA, startB, endB) {
         return startA < endB && endA > startB;
     }
@@ -1277,7 +1301,7 @@
 
         // Horários livres configurados pelo usuário, independentes da duração do serviço.
         // A disponibilidade, porém, considera a duração real do serviço + o tempo de preparo configurado para o profissional.
-        const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, startTime, endTime, date);
+        const freeTimes = getServiceBasedCandidateSlots(prof, dayOfWeek, startTime, endTime, date, selectedDuration);
         const slots = freeTimes.map(timeStr => {
             const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, timeStr, { ativo: isWorkingDay, inicio: startTime, fim: endTime });
             const isBooked = !isSlotAvailableForService(timeStr, selectedDuration, {
@@ -1851,7 +1875,13 @@
         let freeTimes = [];
         const dateExtraSlots = getDateSpecificFreeSlots(prof, date);
         if(base.ativo !== false || dateExtraSlots.length > 0) {
-            configuredTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
+            const professionalServiceIds = Array.isArray(prof.servicos) ? prof.servicos : [];
+            const candidateServicesForGrid = servs.filter(s => professionalServiceIds.length === 0 || professionalServiceIds.includes(s.__backendId));
+            const minDurationForGrid = candidateServicesForGrid.length > 0
+                ? Math.min(...candidateServicesForGrid.map(s => parseInt(s.duration || 30, 10) || 30))
+                : 30;
+            const gridDuration = isAllServicesView ? minDurationForGrid : selectedDuration;
+            configuredTimes = getServiceBasedCandidateSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date, gridDuration);
             freeTimes = configuredTimes.filter(t => {
                 const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, t, base);
                 if (isAllServicesView) {
@@ -2780,7 +2810,7 @@
             const base = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : { ativo: true, inicio: '09:00', fim: '19:00' };
             const dateExceptions = (prof?.excecoes || []).filter(exc => exc.date === data.date);
             const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === data.date && d.profissional_id === data.profissional_id && d.status !== 'cancelado');
-            const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', data.date);
+            const freeTimes = getServiceBasedCandidateSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', data.date, data.service_duration);
             const isConfiguredFreeTime = freeTimes.includes(data.time);
             const hasDateSpecificSlots = getDateSpecificFreeSlots(prof, data.date).length > 0;
             const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, data.date, data.time, base);
