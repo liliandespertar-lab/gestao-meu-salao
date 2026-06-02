@@ -1893,6 +1893,10 @@
         const selectedService = isAllServicesView ? null : servs.find(s => s.__backendId === selectedServiceId);
         const selectedDuration = selectedService ? (parseInt(selectedService.duration || 30, 10) || 30) : 0;
         const setupBuffer = getProfessionalSetupBuffer(prof);
+        // Na visão TODOS da Agenda Profissionais, a agenda é apenas uma visão geral do dia.
+        // Portanto, NÃO deve considerar nem exibir tempo de preparo. O preparo continua valendo
+        // para serviço específico e para qualquer agendamento real.
+        const effectiveSetupBuffer = isAllServicesView ? 0 : setupBuffer;
 
         const date = dateInput.value;
         const dayOfWeek = new Date(date + 'T12:00:00').getDay();
@@ -1907,13 +1911,13 @@
         let freeTimes = [];
         const dateExtraSlots = getDateSpecificFreeSlots(prof, date);
         if(base.ativo !== false || dateExtraSlots.length > 0) {
-            const professionalServiceIds = Array.isArray(prof.servicos) ? prof.servicos : [];
-            const candidateServicesForGrid = servs.filter(s => professionalServiceIds.length === 0 || professionalServiceIds.includes(s.__backendId));
-            const minDurationForGrid = candidateServicesForGrid.length > 0
-                ? Math.min(...candidateServicesForGrid.map(s => parseInt(s.duration || 30, 10) || 30))
-                : 30;
-            const gridDuration = isAllServicesView ? minDurationForGrid : selectedDuration;
-            configuredTimes = getServiceBasedCandidateSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date, gridDuration);
+            if (isAllServicesView) {
+                // TODOS = visão geral do dia. Usa os horários configurados/base + extras da data,
+                // sem criar uma simulação por duração de serviço e sem usar preparo.
+                configuredTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
+            } else {
+                configuredTimes = getServiceBasedCandidateSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date, selectedDuration);
+            }
             freeTimes = configuredTimes.filter(t => {
                 const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, t, base);
                 if (isAllServicesView) {
@@ -1935,7 +1939,7 @@
                     dateExceptions,
                     bookings,
                     cartItems: [],
-                    buffer: setupBuffer
+                    buffer: effectiveSetupBuffer
                 });
             });
         }
@@ -1947,7 +1951,7 @@
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-purple-500">
                 <p class="text-xs font-bold text-gray-500 uppercase">Profissional</p>
                 <p class="text-xl font-bold text-gray-800 mt-1">${prof.name || 'Profissional'}</p>
-                <p class="text-xs text-gray-500 mt-1">Intervalo: ${getProfessionalSlotInterval(prof)} min • Preparo: ${setupBuffer} min</p>
+                <p class="text-xs text-gray-500 mt-1">Intervalo: ${getProfessionalSlotInterval(prof)} min${isAllServicesView ? ' • Preparo ignorado na visão TODOS' : ` • Preparo: ${setupBuffer} min`}</p>
             </div>
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-blue-500">
                 <p class="text-xs font-bold text-gray-500 uppercase">${isAllServicesView ? 'Visão da agenda' : 'Disponibilidade testada para'}</p>
@@ -1977,7 +1981,7 @@
                 ? '<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">Nenhum horário configurado para esta data.</p>'
                 : `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">${configuredTimes.map(t => {
                     const available = freeTimes.includes(t);
-                    return `<span class="text-center ${available ? 'bg-green-50 border-green-100 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-400 line-through'} border rounded-lg py-2 text-sm font-bold" title="${available ? 'Disponível no dia' : 'Indisponível por agendamento, bloqueio, duração ou preparo'}">${t}</span>`;
+                    return `<span class="text-center ${available ? 'bg-green-50 border-green-100 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-400 line-through'} border rounded-lg py-2 text-sm font-bold" title="${available ? 'Disponível no dia' : (isAllServicesView ? 'Indisponível por atendimento em andamento ou bloqueio' : 'Indisponível por agendamento, bloqueio, duração ou preparo')}">${t}</span>`;
                 }).join('')}</div>
                 <p class="text-xs text-gray-500 mt-3">Verde = disponível no dia. Riscado = indisponível por atendimento, bloqueio${isAllServicesView ? '' : ', duração do serviço ou tempo de preparo'}.</p>`;
         } else {
@@ -1992,12 +1996,17 @@
                 let badge = '<span class="bg-yellow-100 text-yellow-700 text-[10px] px-2 py-0.5 rounded-full font-bold">PENDENTE</span>';
                 if (b.status === 'concluido') badge = '<span class="bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold">PAGO</span>';
                 if (b.status === 'fiado') badge = '<span class="bg-red-100 text-red-700 text-[10px] px-2 py-0.5 rounded-full font-bold">FIADO</span>';
+                const busy = getBookingBusyInterval(b);
+                const displayedEnd = isAllServicesView ? busy.serviceEnd : busy.end;
+                const bookingMeta = isAllServicesView
+                    ? `${b.service_name || 'Serviço'} • ${getBookingDuration(b)} min${b.phone ? ' • ' + b.phone : ''}`
+                    : `${b.service_name || 'Serviço'} • ${getBookingDuration(b)} min + ${busy.buffer} min preparo${b.phone ? ' • ' + b.phone : ''}`;
                 return `
                     <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex justify-between gap-3">
                         <div>
-                            <div class="flex items-center gap-2 mb-1"><p class="font-bold text-gray-800">${b.time || ''} às ${minutesToTime(getBookingBusyInterval(b).serviceEnd)}</p>${badge}</div>
+                            <div class="flex items-center gap-2 mb-1"><p class="font-bold text-gray-800">${b.time || ''} às ${minutesToTime(displayedEnd)}</p>${badge}</div>
                             <p class="text-sm font-bold text-gray-700">${b.client_name || 'Cliente'}</p>
-                            <p class="text-xs text-gray-500">${b.service_name || 'Serviço'} • ${getBookingDuration(b)} min + ${getBookingBusyInterval(b).buffer} min preparo ${b.phone ? '• ' + b.phone : ''}</p>
+                            <p class="text-xs text-gray-500">${bookingMeta}</p>
                         </div>
                         <button onclick="switchTabAdmin('agendamentos')" class="text-xs font-bold text-[#c41e3a] bg-pink-50 hover:bg-pink-100 px-3 py-2 rounded-lg transition h-fit">Abrir</button>
                     </div>`;
