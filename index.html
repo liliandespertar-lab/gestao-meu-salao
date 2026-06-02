@@ -1022,10 +1022,38 @@
     }
 
     function getProfessionalSetupBuffer(prof) {
+        // IMPORTANTE: se o profissional escolher 0 minutos, o sistema deve respeitar 0.
+        // Por isso usamos ?? e parseNonNegativeMinutes, nunca operador ||.
         return parseNonNegativeMinutes(
             prof?.setup_buffer_minutes ?? prof?.tempo_preparo_minutos ?? DEFAULT_SETUP_BUFFER_MINUTES,
             DEFAULT_SETUP_BUFFER_MINUTES
         );
+    }
+
+    function getProfessionalById(profId) {
+        return allData.find(d => d.type === 'profissional' && d.__backendId === profId) || null;
+    }
+
+    function getBookingSetupBuffer(booking) {
+        // Agendamentos antigos podem não ter setup_buffer_minutes gravado.
+        // Nesses casos, usamos a configuração ATUAL do profissional.
+        // Assim, se o profissional estiver com preparo = 0, não será aplicado nenhum intervalo extra.
+        if (booking && (booking.setup_buffer_minutes !== undefined && booking.setup_buffer_minutes !== null && booking.setup_buffer_minutes !== '')) {
+            return parseNonNegativeMinutes(booking.setup_buffer_minutes, DEFAULT_SETUP_BUFFER_MINUTES);
+        }
+        const prof = getProfessionalById(booking?.profissional_id);
+        return prof ? getProfessionalSetupBuffer(prof) : DEFAULT_SETUP_BUFFER_MINUTES;
+    }
+
+    function getCartSetupBuffer(item) {
+        if (item && (item.setupBufferMinutes !== undefined && item.setupBufferMinutes !== null && item.setupBufferMinutes !== '')) {
+            return parseNonNegativeMinutes(item.setupBufferMinutes, DEFAULT_SETUP_BUFFER_MINUTES);
+        }
+        if (item && (item.setup_buffer_minutes !== undefined && item.setup_buffer_minutes !== null && item.setup_buffer_minutes !== '')) {
+            return parseNonNegativeMinutes(item.setup_buffer_minutes, DEFAULT_SETUP_BUFFER_MINUTES);
+        }
+        const prof = getProfessionalById(item?.profId || item?.profissional_id);
+        return prof ? getProfessionalSetupBuffer(prof) : DEFAULT_SETUP_BUFFER_MINUTES;
     }
 
     function getProfessionalSlotInterval(prof) {
@@ -1116,7 +1144,7 @@
     function getBookingBusyInterval(booking) {
         const start = timeToMinutes(booking.time);
         const duration = getBookingDuration(booking, 30);
-        const buffer = parseNonNegativeMinutes(booking.setup_buffer_minutes ?? DEFAULT_SETUP_BUFFER_MINUTES, DEFAULT_SETUP_BUFFER_MINUTES);
+        const buffer = getBookingSetupBuffer(booking);
         return {
             start,
             serviceEnd: start + duration,
@@ -1129,7 +1157,7 @@
     function getCartBusyInterval(item) {
         const start = timeToMinutes(item.time);
         const duration = parseInt(item.serviceDuration ?? getServiceDurationById(item.serviceId, 30), 10) || 30;
-        const buffer = parseNonNegativeMinutes(item.setupBufferMinutes ?? item.setup_buffer_minutes ?? DEFAULT_SETUP_BUFFER_MINUTES, DEFAULT_SETUP_BUFFER_MINUTES);
+        const buffer = getCartSetupBuffer(item);
         return {
             start,
             serviceEnd: start + duration,
@@ -1368,7 +1396,7 @@
             <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex justify-between items-center">
                 <div>
                     <p class="font-bold text-sm text-indigo-900">${item.serviceName}</p>
-                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span> • ${item.serviceDuration || 30} min + ${parseNonNegativeMinutes(item.setupBufferMinutes ?? DEFAULT_SETUP_BUFFER_MINUTES, DEFAULT_SETUP_BUFFER_MINUTES)} min preparo</p>
+                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span> • ${item.serviceDuration || 30} min + ${getCartSetupBuffer(item)} min preparo</p>
                 </div>
                 <button type="button" onclick="removeCartItem(${idx})" class="text-red-500 hover:bg-red-100 p-1.5 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
@@ -1415,7 +1443,7 @@
                     dateExceptions,
                     bookings: dbBookings,
                     cartItems: otherCartItems,
-                    buffer: parseNonNegativeMinutes(item.setupBufferMinutes ?? getProfessionalSetupBuffer(prof), getProfessionalSetupBuffer(prof))
+                    buffer: getCartSetupBuffer(item)
                 });
 
                 if (!stillAvailable) {
@@ -1435,7 +1463,7 @@
                     client_name: name, phone: phone, 
                     service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0,
                     service_duration: item.serviceDuration || getServiceDurationById(item.serviceId, 30),
-                    setup_buffer_minutes: parseNonNegativeMinutes(item.setupBufferMinutes ?? DEFAULT_SETUP_BUFFER_MINUTES, DEFAULT_SETUP_BUFFER_MINUTES),
+                    setup_buffer_minutes: getCartSetupBuffer(item),
                     profissional: item.profName, profissional_id: item.profId,
                     date: date, time: item.time,
                     criado_em: firebase.firestore.FieldValue.serverTimestamp()
