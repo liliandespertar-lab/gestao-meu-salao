@@ -650,6 +650,7 @@
     let currentCheckoutId = null; 
     let currentEditId = null; // Para editar items genéricos (ex: Profissional)
     let publicCart = [];
+    const PREP_BUFFER_MINUTES = 15; // Tempo fixo para o profissional arrumar o local entre atendimentos
     let isInitialLoad = true; // Controle para não notificar agendamentos antigos ao carregar a página pela 1ª vez
 
     // URL Handlers
@@ -926,7 +927,18 @@
             .sort();
     }
 
-    function getProfessionalFreeSlots(prof, dayOfWeek, startTime = '09:00', endTime = '19:00') {
+    function getProfessionalFreeSlots(prof, dayOfWeek, startTime = '09:00', endTime = '19:00', date = '') {
+        // Primeiro considera liberações por DATA ESPECÍFICA.
+        // Estrutura nova: horariosLivresDatas: [{ date: '2026-06-02', slots: ['09:00', '10:30'] }]
+        const dateRows = Array.isArray(prof?.horariosLivresDatas) ? prof.horariosLivresDatas : [];
+        const rowsForDate = dateRows.filter(row => row && row.date === date);
+        const dateSpecificSlots = rowsForDate.flatMap(row => normalizeSlotList(row.slots || row.horarios || row.times || ''));
+
+        if (dateSpecificSlots.length > 0) {
+            return [...new Set(dateSpecificSlots)].sort();
+        }
+
+        // Compatibilidade com a versão anterior: horários livres semanais.
         const savedSlots = prof && prof.horariosLivres && prof.horariosLivres[dayOfWeek]
             ? normalizeSlotList(prof.horariosLivres[dayOfWeek])
             : [];
@@ -946,14 +958,97 @@
         return slots;
     }
 
-    function isSlotBlockedByException(timeStr, dateExceptions) {
-        const slotMins = timeToMinutes(timeStr);
+    function intervalsOverlap(startA, endA, startB, endB) {
+        return startA < endB && endA > startB;
+    }
+
+    function minutesToTime(totalMins) {
+        const mins = Math.max(0, totalMins || 0);
+        const hStr = String(Math.floor(mins / 60)).padStart(2, '0');
+        const mStr = String(mins % 60).padStart(2, '0');
+        return `${hStr}:${mStr}`;
+    }
+
+    function getServiceDurationById(serviceId, fallback = 30) {
+        const service = allData.find(d => d.__backendId === serviceId);
+        return parseInt(service?.duration || fallback, 10) || fallback;
+    }
+
+    function getBookingDuration(booking, fallback = 30) {
+        return parseInt(booking?.service_duration || booking?.duration || getServiceDurationById(booking?.service_id, fallback), 10) || fallback;
+    }
+
+    function getBookingBusyInterval(booking) {
+        const start = timeToMinutes(booking.time);
+        const duration = getBookingDuration(booking, 30);
+        const buffer = parseInt(booking.setup_buffer_minutes || PREP_BUFFER_MINUTES, 10) || PREP_BUFFER_MINUTES;
+        return {
+            start,
+            serviceEnd: start + duration,
+            end: start + duration + buffer,
+            duration,
+            buffer
+        };
+    }
+
+    function getCartBusyInterval(item) {
+        const start = timeToMinutes(item.time);
+        const duration = parseInt(item.serviceDuration || getServiceDurationById(item.serviceId, 30), 10) || 30;
+        return {
+            start,
+            serviceEnd: start + duration,
+            end: start + duration + PREP_BUFFER_MINUTES,
+            duration,
+            buffer: PREP_BUFFER_MINUTES
+        };
+    }
+
+    function isIntervalBlockedByException(startMins, endMins, dateExceptions) {
         return (dateExceptions || []).some(exc => {
             if(!exc.inicio || !exc.fim) return false;
             const blockStartMins = timeToMinutes(exc.inicio);
             const blockEndMins = timeToMinutes(exc.fim);
-            return slotMins >= blockStartMins && slotMins < blockEndMins;
+            return intervalsOverlap(startMins, endMins, blockStartMins, blockEndMins);
         });
+    }
+
+    function isSlotBlockedByException(timeStr, dateExceptions, duration = 0, buffer = 0) {
+        const slotMins = timeToMinutes(timeStr);
+        const endMins = slotMins + (parseInt(duration, 10) || 0) + (parseInt(buffer, 10) || 0);
+        if (endMins <= slotMins) {
+            return (dateExceptions || []).some(exc => {
+                if(!exc.inicio || !exc.fim) return false;
+                const blockStartMins = timeToMinutes(exc.inicio);
+                const blockEndMins = timeToMinutes(exc.fim);
+                return slotMins >= blockStartMins && slotMins < blockEndMins;
+            });
+        }
+        return isIntervalBlockedByException(slotMins, endMins, dateExceptions);
+    }
+
+    function isSlotAvailableForService(timeStr, duration, options = {}) {
+        const startMins = timeToMinutes(timeStr);
+        const buffer = options.buffer ?? PREP_BUFFER_MINUTES;
+        const endMins = startMins + (parseInt(duration, 10) || 30) + buffer;
+        const startLimit = timeToMinutes(options.startTime || '00:00');
+        const endLimit = timeToMinutes(options.endTime || '23:59');
+
+        if (startMins < startLimit || endMins > endLimit) return false;
+        if (isIntervalBlockedByException(startMins, endMins, options.dateExceptions || [])) return false;
+
+        const bookings = options.bookings || [];
+        for (let b of bookings) {
+            const busy = getBookingBusyInterval(b);
+            if (intervalsOverlap(startMins, endMins, busy.start, busy.end)) return false;
+        }
+
+        const cartItems = options.cartItems || [];
+        for (let item of cartItems) {
+            const busy = getCartBusyInterval(item);
+            if (intervalsOverlap(startMins, endMins, busy.start, busy.end)) return false;
+        }
+
+        return true;
     }
 
     window.updatePublicSlots = function() {
@@ -992,18 +1087,24 @@
             return;
         }
 
+        const service = allData.find(d => d.__backendId === srvId);
+        const selectedDuration = parseInt(service?.duration || 30, 10) || 30;
         const dateExceptions = (prof.excecoes || []).filter(e => e.date === date);
         const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === profId && d.status !== 'cancelado');
-        const bookedTimes = new Set(dbBookings.map(b => b.time));
+        const cartBookings = publicCart.filter(item => item.profId === profId);
 
-        publicCart.forEach(item => {
-            if(item.profId === profId) bookedTimes.add(item.time); 
-        });
-
-        // NOVO: horários livres configurados pelo usuário, independentes da duração do serviço.
-        const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, startTime, endTime);
+        // Horários livres configurados pelo usuário, independentes da duração do serviço.
+        // A disponibilidade, porém, considera a duração real do serviço + 15 minutos de preparação.
+        const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, startTime, endTime, date);
         const slots = freeTimes.map(timeStr => {
-            const isBooked = bookedTimes.has(timeStr) || isSlotBlockedByException(timeStr, dateExceptions);
+            const isBooked = !isSlotAvailableForService(timeStr, selectedDuration, {
+                startTime,
+                endTime,
+                dateExceptions,
+                bookings: dbBookings,
+                cartItems: cartBookings,
+                buffer: PREP_BUFFER_MINUTES
+            });
             return { time: timeStr, booked: isBooked };
         });
 
@@ -1024,7 +1125,16 @@
         const srv = allData.find(d => d.__backendId === srvId);
         const prof = allData.find(d => d.__backendId === profId);
         
-        publicCart.push({ serviceId: srvId, serviceName: srv.name, servicePrice: srv.price, profId: profId, profName: prof.name, time: time });
+        publicCart.push({
+            serviceId: srvId,
+            serviceName: srv.name,
+            servicePrice: srv.price,
+            serviceDuration: parseInt(srv.duration || 30, 10) || 30,
+            setupBufferMinutes: PREP_BUFFER_MINUTES,
+            profId: profId,
+            profName: prof.name,
+            time: time
+        });
         
         document.getElementById('public-service-select').value = '';
         updatePublicProfDropdown();
@@ -1051,7 +1161,7 @@
             <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex justify-between items-center">
                 <div>
                     <p class="font-bold text-sm text-indigo-900">${item.serviceName}</p>
-                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span></p>
+                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span> • ${item.serviceDuration || 30} min + ${PREP_BUFFER_MINUTES} min preparo</p>
                 </div>
                 <button type="button" onclick="removeCartItem(${idx})" class="text-red-500 hover:bg-red-100 p-1.5 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
@@ -1078,6 +1188,34 @@
                 await db.collection(COLLECTION_NAME).add({ type: 'cliente', userId: targetSalonId, nome: name, telefone: phone, email: email, data_nascimento: '', cpf: '', endereco: '' });
             }
 
+            // Conferência final contra sobreposição no momento de salvar, evitando conflito se outro cliente agendar ao mesmo tempo.
+            for (let item of publicCart) {
+                const prof = allData.find(d => d.__backendId === item.profId);
+                const selectedDateObj = new Date(date + 'T12:00:00');
+                const dayOfWeek = selectedDateObj.getDay();
+                const base = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : { ativo: true, inicio: '09:00', fim: '19:00' };
+                const dateExceptions = (prof?.excecoes || []).filter(exc => exc.date === date);
+                const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === item.profId && d.status !== 'cancelado');
+                const otherCartItems = publicCart.filter(other => other !== item && other.profId === item.profId);
+                const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
+                const isConfiguredFreeTime = freeTimes.includes(item.time);
+                const stillAvailable = base.ativo !== false && isConfiguredFreeTime && isSlotAvailableForService(item.time, item.serviceDuration || 30, {
+                    startTime: base.inicio || '09:00',
+                    endTime: base.fim || '19:00',
+                    dateExceptions,
+                    bookings: dbBookings,
+                    cartItems: otherCartItems,
+                    buffer: PREP_BUFFER_MINUTES
+                });
+
+                if (!stillAvailable) {
+                    showToast(`O horário ${item.time} com ${item.profName} acabou de ficar indisponível. Escolha outro horário.`, 'error');
+                    updatePublicSlots();
+                    setLoading(false);
+                    return;
+                }
+            }
+
             const promises = publicCart.map((item, index) => {
                 const reqNum = generateRequisicao(index);
                 return db.collection(COLLECTION_NAME).add({
@@ -1085,7 +1223,9 @@
                     userId: targetSalonId,
                     requisicao: reqNum,
                     client_name: name, phone: phone, 
-                    service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0, 
+                    service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0,
+                    service_duration: item.serviceDuration || getServiceDurationById(item.serviceId, 30),
+                    setup_buffer_minutes: PREP_BUFFER_MINUTES,
                     profissional: item.profName, profissional_id: item.profId,
                     date: date, time: item.time,
                     criado_em: firebase.firestore.FieldValue.serverTimestamp()
@@ -1497,9 +1637,13 @@
 
         let freeTimes = [];
         if(base.ativo !== false) {
-            freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00')
-                .filter(t => !bookings.some(b => b.time === t))
-                .filter(t => !isSlotBlockedByException(t, dateExceptions));
+            const busyIntervals = bookings.map(b => getBookingBusyInterval(b));
+            freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date)
+                .filter(t => {
+                    const slotStart = timeToMinutes(t);
+                    const blockedByBooking = busyIntervals.some(busy => slotStart >= busy.start && slotStart < busy.end);
+                    return !blockedByBooking && !isSlotBlockedByException(t, dateExceptions);
+                });
         }
 
         summary.innerHTML = `
@@ -1531,9 +1675,9 @@
                 return `
                     <div class="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex justify-between gap-3">
                         <div>
-                            <div class="flex items-center gap-2 mb-1"><p class="font-bold text-gray-800">${b.time || ''}</p>${badge}</div>
+                            <div class="flex items-center gap-2 mb-1"><p class="font-bold text-gray-800">${b.time || ''} às ${minutesToTime(getBookingBusyInterval(b).serviceEnd)}</p>${badge}</div>
                             <p class="text-sm font-bold text-gray-700">${b.client_name || 'Cliente'}</p>
-                            <p class="text-xs text-gray-500">${b.service_name || 'Serviço'} ${b.phone ? '• ' + b.phone : ''}</p>
+                            <p class="text-xs text-gray-500">${b.service_name || 'Serviço'} • ${getBookingDuration(b)} min + ${getBookingBusyInterval(b).buffer} min preparo ${b.phone ? '• ' + b.phone : ''}</p>
                         </div>
                         <button onclick="switchTabAdmin('agendamentos')" class="text-xs font-bold text-[#c41e3a] bg-pink-50 hover:bg-pink-100 px-3 py-2 rounded-lg transition h-fit">Abrir</button>
                     </div>`;
@@ -1918,6 +2062,22 @@
         try{lucide.createIcons();}catch(e){}
     };
 
+
+    // --- FUNÇÃO: ADICIONAR LINHA DE HORÁRIOS LIVRES POR DATA ---
+    window.addLivreRow = function(date = '', slots = '') {
+        const container = document.getElementById('livres-container');
+        if(!container) return;
+        const div = document.createElement('div');
+        div.className = "grid grid-cols-1 md:grid-cols-[150px_1fr_40px] gap-2 items-center mb-2 fade-in bg-white border border-gray-200 rounded-lg p-2 shadow-sm";
+        div.innerHTML = `
+            <input type="date" name="livre_date[]" value="${date}" class="p-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-purple-500" required>
+            <input type="text" name="livre_slots[]" value="${String(slots || '').replace(/"/g, '&quot;')}" placeholder="Ex: 09:00, 10:30, 13:00, 15:45" class="p-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-purple-500" required>
+            <button type="button" onclick="this.closest('div').remove()" class="text-red-400 hover:text-red-600 hover:bg-red-50 p-2 rounded-lg transition" title="Remover data liberada"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+        `;
+        container.appendChild(div);
+        try{lucide.createIcons();}catch(e){}
+    };
+
     // --- FORMULÁRIOS ADMIN MODAL ---
     window.showForm = function(type, editId = null) {
         currentFormType = type;
@@ -1966,7 +2126,7 @@
                 <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Salvar Ficha</button>`;
         } 
         else if (type === 'profissional') {
-            let pName = '', pCargo = '', pServs = [], pHorarios = null, pHorariosLivres = null, pExcecoes = [];
+            let pName = '', pCargo = '', pServs = [], pHorarios = null, pHorariosLivres = null, pHorariosLivresDatas = [], pExcecoes = [];
             if (editId) {
                 const p = allData.find(d => d.__backendId === editId);
                 if (p) { 
@@ -1975,6 +2135,7 @@
                     pServs = p.servicos || []; 
                     pHorarios = p.horarios || null; 
                     pHorariosLivres = p.horariosLivres || null;
+                    pHorariosLivresDatas = Array.isArray(p.horariosLivresDatas) ? p.horariosLivresDatas : [];
                     pExcecoes = p.excecoes || [];
                 }
                 title.textContent = 'Editar Profissional e Horários';
@@ -2009,15 +2170,6 @@
                 </div>`;
             }).join('');
 
-            const horariosLivresHtml = dias.map((dia, idx) => {
-                const slots = pHorariosLivres && pHorariosLivres[idx] ? normalizeSlotList(pHorariosLivres[idx]).join(', ') : '';
-                return `
-                <div class="bg-white rounded-lg border border-gray-200 shadow-sm p-2">
-                    <label class="block text-xs font-bold text-gray-600 mb-1">${dia}</label>
-                    <input type="text" name="slot_livres_${idx}" value="${slots}" placeholder="Ex: 09:00, 10:30, 14:00, 16:15" class="w-full p-2 border border-gray-200 rounded-lg text-xs outline-none focus:border-purple-500">
-                </div>`;
-            }).join('');
-
             form.innerHTML = `
                 <input name="name" value="${pName}" placeholder="Nome do Profissional" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none mb-3">
                 <input name="cargo" value="${pCargo}" placeholder="Cargo/Especialidade (ex: Barbeiro, Manicure)" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none mb-4">
@@ -2037,11 +2189,10 @@
                 </div>
 
                 <div class="border-t border-gray-100 pt-4 mt-4">
-                    <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="calendar-clock" class="w-3 h-3"></i> Horários Livres para Agendamento:</label>
-                    <p class="text-[11px] text-gray-500 mb-2 bg-purple-50 border border-purple-100 rounded-lg p-2">Informe os horários que o cliente poderá escolher, separados por vírgula. Estes horários não dependem da duração do serviço.</p>
-                    <div class="grid grid-cols-1 gap-2 bg-gray-50 p-2 rounded-xl border border-gray-200">
-                        ${horariosLivresHtml}
-                    </div>
+                    <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="calendar-clock" class="w-3 h-3"></i> Liberação de Horários por Data:</label>
+                    <p class="text-[11px] text-gray-500 mb-2 bg-purple-50 border border-purple-100 rounded-lg p-2">Escolha a data e informe exatamente os horários que o cliente poderá selecionar nessa data. Separe os horários por vírgula. A disponibilidade continuará respeitando duração do serviço, 15 minutos de preparo, bloqueios e agendamentos já existentes.</p>
+                    <div id="livres-container" class="space-y-1 bg-gray-50 p-2 rounded-xl border border-gray-200"></div>
+                    <button type="button" onclick="addLivreRow()" class="mt-2 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition">+ Adicionar Data com Horários Livres</button>
                 </div>
 
                 <!-- NOVA SECÇÃO: EXCEÇÕES DE DATA -->
@@ -2053,8 +2204,11 @@
 
                 <button type="submit" class="w-full bg-purple-600 text-white p-3.5 rounded-xl font-bold mt-4 hover:bg-purple-700 transition shadow-lg">${editId ? 'Salvar Alterações' : 'Salvar Novo Membro'}</button>`;
             
-            // Injetar as exceções existentes após renderizar o HTML
+            // Injetar horários livres por data e exceções existentes após renderizar o HTML
             setTimeout(() => {
+                if (pHorariosLivresDatas && pHorariosLivresDatas.length > 0) {
+                    pHorariosLivresDatas.forEach(row => addLivreRow(row.date, normalizeSlotList(row.slots || row.horarios || row.times || '').join(', ')));
+                }
                 if (pExcecoes && pExcecoes.length > 0) {
                     pExcecoes.forEach(e => addExcRow(e.date, e.inicio, e.fim));
                 }
@@ -2268,12 +2422,18 @@
             }
             data.horarios = horarios;
 
-            let horariosLivres = {};
-            for(let i = 0; i < 7; i++) {
-                horariosLivres[i] = normalizeSlotList(fd.get(`slot_livres_${i}`));
-                fd.delete(`slot_livres_${i}`);
+            // Nova configuração: horários livres por DATA específica.
+            const livreDates = fd.getAll('livre_date[]');
+            const livreSlots = fd.getAll('livre_slots[]');
+            let horariosLivresDatas = [];
+            for (let i = 0; i < livreDates.length; i++) {
+                const slots = normalizeSlotList(livreSlots[i]);
+                if (livreDates[i] && slots.length > 0) {
+                    horariosLivresDatas.push({ date: livreDates[i], slots });
+                }
             }
-            data.horariosLivres = horariosLivres;
+            data.horariosLivresDatas = horariosLivresDatas;
+            data.horariosLivres = {}; // limpa a configuração semanal antiga ao salvar o profissional
 
             // Processar Exceções
             const excDates = fd.getAll('exc_date[]');
@@ -2303,7 +2463,30 @@
             
             data.service_name = srvSel.options[srvSel.selectedIndex].dataset.name;
             data.service_price = srvSel.options[srvSel.selectedIndex].dataset.price || 0;
+            data.service_duration = parseInt(srvSel.options[srvSel.selectedIndex].dataset.duration || 30, 10) || 30;
+            data.setup_buffer_minutes = PREP_BUFFER_MINUTES;
             data.profissional = profSel.options[profSel.selectedIndex].dataset.name;
+
+            const prof = allData.find(d => d.__backendId === data.profissional_id);
+            const dayOfWeek = new Date(data.date + 'T12:00:00').getDay();
+            const base = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : { ativo: true, inicio: '09:00', fim: '19:00' };
+            const dateExceptions = (prof?.excecoes || []).filter(exc => exc.date === data.date);
+            const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === data.date && d.profissional_id === data.profissional_id && d.status !== 'cancelado');
+            const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', data.date);
+            const isConfiguredFreeTime = freeTimes.includes(data.time);
+            const horarioDisponivel = base.ativo !== false && isConfiguredFreeTime && isSlotAvailableForService(data.time, data.service_duration, {
+                startTime: base.inicio || '09:00',
+                endTime: base.fim || '19:00',
+                dateExceptions,
+                bookings: dbBookings,
+                cartItems: [],
+                buffer: PREP_BUFFER_MINUTES
+            });
+
+            if (!horarioDisponivel) {
+                showToast('Este horário não está liberado para essa data ou conflita com outro atendimento, bloqueio ou tempo de preparo.', 'error');
+                return;
+            }
         }
 
         fd.forEach((v, k) => {
