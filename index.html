@@ -1268,16 +1268,20 @@
         if (slotMins < startLimit || slotMins > endLimit) return false;
         if (isSlotBlockedByException(timeStr, options.dateExceptions || [], 0, 0)) return false;
 
+        const ignoreBookingBuffer = options.ignoreBookingBuffer === true;
+
         const bookings = options.bookings || [];
         for (let b of bookings) {
             const busy = getBookingBusyInterval(b);
-            if (slotMins >= busy.start && slotMins < busy.end) return false;
+            const busyEnd = ignoreBookingBuffer ? busy.serviceEnd : busy.end;
+            if (slotMins >= busy.start && slotMins < busyEnd) return false;
         }
 
         const cartItems = options.cartItems || [];
         for (let item of cartItems) {
             const busy = getCartBusyInterval(item);
-            if (slotMins >= busy.start && slotMins < busy.end) return false;
+            const busyEnd = ignoreBookingBuffer ? busy.serviceEnd : busy.end;
+            if (slotMins >= busy.start && slotMins < busyEnd) return false;
         }
 
         return true;
@@ -1913,21 +1917,16 @@
             freeTimes = configuredTimes.filter(t => {
                 const slotWindow = getAvailabilityWindowForSlot(prof, dayOfWeek, date, t, base);
                 if (isAllServicesView) {
-                    // Na visão TODOS, mostramos como disponível apenas o horário que comporta pelo menos
-                    // o menor serviço realizado por este profissional + o preparo. Assim evitamos que a agenda
-                    // marque como livre um ponto entre atendimentos que, na prática, não comporta nenhum serviço.
-                    const professionalServiceIds = Array.isArray(prof.servicos) ? prof.servicos : [];
-                    const candidateServices = servs.filter(s => professionalServiceIds.length === 0 || professionalServiceIds.includes(s.__backendId));
-                    const minDuration = candidateServices.length > 0
-                        ? Math.min(...candidateServices.map(s => parseInt(s.duration || 30, 10) || 30))
-                        : 30;
-                    return isSlotAvailableForService(t, minDuration, {
+                    // Na visão TODOS da Agenda Profissionais, a intenção é enxergar os horários livres do dia
+                    // como pontos de agenda, sem simular serviço específico e sem aplicar o tempo de preparo.
+                    // O preparo continua valendo quando o usuário escolhe um serviço específico ou agenda de fato.
+                    return isSlotFreeAtMoment(t, {
                         startTime: slotWindow.startTime,
                         endTime: slotWindow.endTime,
                         dateExceptions,
                         bookings,
                         cartItems: [],
-                        buffer: setupBuffer
+                        ignoreBookingBuffer: true
                     });
                 }
                 return isSlotAvailableForService(t, selectedDuration, {
@@ -1953,7 +1952,7 @@
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-blue-500">
                 <p class="text-xs font-bold text-gray-500 uppercase">${isAllServicesView ? 'Visão da agenda' : 'Disponibilidade testada para'}</p>
                 <p class="text-lg font-bold text-blue-700 mt-1">${serviceLabel}</p>
-                <p class="text-xs text-gray-500 mt-1">${isAllServicesView ? 'Mostra os horários livres e agendados do dia, sem simular um serviço específico' : `${selectedDuration} min + ${setupBuffer} min preparo`}</p>
+                <p class="text-xs text-gray-500 mt-1">${isAllServicesView ? 'Mostra os horários livres e agendados do dia, sem simular serviço específico e sem aplicar preparo' : `${selectedDuration} min + ${setupBuffer} min preparo`}</p>
             </div>
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-green-500">
                 <p class="text-xs font-bold text-gray-500 uppercase">Disponíveis no dia</p>
@@ -1983,7 +1982,7 @@
                 <p class="text-xs text-gray-500 mt-3">Verde = disponível no dia. Riscado = indisponível por atendimento, bloqueio${isAllServicesView ? '' : ', duração do serviço ou tempo de preparo'}.</p>`;
         } else {
             livresHtml = freeTimes.length === 0
-                ? `<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">${isAllServicesView ? 'Nenhum horário disponível no dia, considerando bloqueios e agendamentos já existentes.' : `Nenhum horário disponível no dia comporta ${serviceLabel}, considerando duração, preparo, bloqueios e agendamentos já existentes.`}</p>`
+                ? `<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">${isAllServicesView ? 'Nenhum horário disponível no dia, considerando bloqueios e atendimentos em andamento.' : `Nenhum horário disponível no dia comporta ${serviceLabel}, considerando duração, preparo, bloqueios e agendamentos já existentes.`}</p>`
                 : `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">${freeTimes.map(t => `<span class="text-center bg-green-50 border border-green-100 text-green-700 rounded-lg py-2 text-sm font-bold">${t}</span>`).join('')}</div>`;
         }
 
