@@ -451,6 +451,21 @@
                     </div>
                 </div>
 
+                <div class="bg-white p-4 rounded-xl border border-indigo-100 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-bold text-gray-800 flex items-center gap-2"><i data-lucide="bell-ring" class="w-4 h-4 text-indigo-600"></i> Alertas deste profissional no celular</h3>
+                        <p id="agenda-prof-alert-status" class="text-sm text-gray-500 mt-1">Selecione um profissional e toque em ativar para liberar som e notificação neste aparelho.</p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                        <button type="button" onclick="activateProfessionalAlerts()" class="bg-indigo-600 text-white px-4 py-3 rounded-xl text-sm font-bold hover:bg-indigo-700 transition flex items-center justify-center gap-2 shadow-sm">
+                            <i data-lucide="volume-2" class="w-4 h-4"></i> Ativar Alertas
+                        </button>
+                        <button type="button" onclick="disableProfessionalAlerts()" class="bg-gray-100 text-gray-600 px-4 py-3 rounded-xl text-sm font-bold hover:bg-gray-200 transition flex items-center justify-center gap-2">
+                            <i data-lucide="volume-x" class="w-4 h-4"></i> Desativar
+                        </button>
+                    </div>
+                </div>
+
                 <div id="agenda-prof-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
                 <div id="agenda-prof-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
             </section>
@@ -650,8 +665,16 @@
     let currentCheckoutId = null; 
     let currentEditId = null; // Para editar items genéricos (ex: Profissional)
     let publicCart = [];
-    const PREP_BUFFER_MINUTES = 15; // Tempo fixo para o profissional arrumar o local entre atendimentos
+    const DEFAULT_SETUP_BUFFER_MINUTES = 15; // Tempo padrão de preparo entre atendimentos. Pode ser alterado por profissional.
+    const DEFAULT_SLOT_INTERVAL_MINUTES = 30; // Intervalo padrão para gerar horários automáticos quando não houver horários livres cadastrados.
+    const PREP_BUFFER_MINUTES = DEFAULT_SETUP_BUFFER_MINUTES; // Compatibilidade com agendamentos antigos.
     let isInitialLoad = true; // Controle para não notificar agendamentos antigos ao carregar a página pela 1ª vez
+
+    // Alertas sonoros por profissional: ficam salvos no próprio aparelho/navegador.
+    // No celular, o som só é confiável depois de o usuário tocar no botão para ativar.
+    let alertAudioCtx = null;
+    let alertSoundUnlocked = false;
+    let professionalAlertId = localStorage.getItem('gb_professional_alert_id') || '';
 
     // URL Handlers
     const urlParams = new URLSearchParams(window.location.search);
@@ -799,7 +822,7 @@
                         if (change.type === 'added') {
                             const data = change.doc.data();
                             // Dispara notificação se for um novo agendamento para o admin atual
-                            if (data.type === 'agendamento' && (!data.userId || data.userId === currentUserId || currentUserId === 'admin_default')) {
+                            if (data.type === 'agendamento' && shouldNotifyNewBooking(data)) {
                                 dispararNotificacaoNovoAgendamento(data);
                             }
                         }
@@ -927,35 +950,51 @@
             .sort();
     }
 
+    function getProfessionalSetupBuffer(prof) {
+        const value = parseInt(
+            prof?.setup_buffer_minutes ?? prof?.tempo_preparo_minutos ?? DEFAULT_SETUP_BUFFER_MINUTES,
+            10
+        );
+        return Number.isFinite(value) && value >= 0 ? value : DEFAULT_SETUP_BUFFER_MINUTES;
+    }
+
+    function getProfessionalSlotInterval(prof) {
+        const value = parseInt(
+            prof?.slot_interval_minutes ?? prof?.intervalo_agenda_minutos ?? DEFAULT_SLOT_INTERVAL_MINUTES,
+            10
+        );
+        return Number.isFinite(value) && value > 0 ? value : DEFAULT_SLOT_INTERVAL_MINUTES;
+    }
+
     function getProfessionalFreeSlots(prof, dayOfWeek, startTime = '09:00', endTime = '19:00', date = '') {
-        // Primeiro considera liberações por DATA ESPECÍFICA.
-        // Estrutura nova: horariosLivresDatas: [{ date: '2026-06-02', slots: ['09:00', '10:30'] }]
+        // Horários pré-determinados e liberações por data trabalham juntos.
+        // A liberação por data ADICIONA horários extras; ela não substitui os horários já configurados.
         const dateRows = Array.isArray(prof?.horariosLivresDatas) ? prof.horariosLivresDatas : [];
         const rowsForDate = dateRows.filter(row => row && row.date === date);
         const dateSpecificSlots = rowsForDate.flatMap(row => normalizeSlotList(row.slots || row.horarios || row.times || ''));
 
-        if (dateSpecificSlots.length > 0) {
-            return [...new Set(dateSpecificSlots)].sort();
-        }
-
-        // Compatibilidade com a versão anterior: horários livres semanais.
+        // Compatibilidade com a versão anterior: horários livres semanais/pré-determinados.
         const savedSlots = prof && prof.horariosLivres && prof.horariosLivres[dayOfWeek]
             ? normalizeSlotList(prof.horariosLivres[dayOfWeek])
             : [];
 
-        if (savedSlots.length > 0) return savedSlots;
+        let baseSlots = savedSlots;
 
-        // Compatibilidade com profissionais antigos: se ainda não houver horários livres salvos,
-        // o sistema gera opções de 30 em 30 minutos dentro do horário base.
-        const slots = [];
-        const start = timeToMinutes(startTime);
-        const end = timeToMinutes(endTime);
-        for (let m = start; m < end; m += 30) {
-            const hStr = String(Math.floor(m / 60)).padStart(2, '0');
-            const mStr = String(m % 60).padStart(2, '0');
-            slots.push(`${hStr}:${mStr}`);
+        // Compatibilidade com profissionais sem horários salvos: gera opções dentro do horário base.
+        // Agora o intervalo é configurável por profissional.
+        if (baseSlots.length === 0) {
+            baseSlots = [];
+            const start = timeToMinutes(startTime);
+            const end = timeToMinutes(endTime);
+            const interval = getProfessionalSlotInterval(prof);
+            for (let m = start; m < end; m += interval) {
+                const hStr = String(Math.floor(m / 60)).padStart(2, '0');
+                const mStr = String(m % 60).padStart(2, '0');
+                baseSlots.push(`${hStr}:${mStr}`);
+            }
         }
-        return slots;
+
+        return [...new Set([...baseSlots, ...dateSpecificSlots])].sort();
     }
 
     function intervalsOverlap(startA, endA, startB, endB) {
@@ -981,7 +1020,7 @@
     function getBookingBusyInterval(booking) {
         const start = timeToMinutes(booking.time);
         const duration = getBookingDuration(booking, 30);
-        const buffer = parseInt(booking.setup_buffer_minutes || PREP_BUFFER_MINUTES, 10) || PREP_BUFFER_MINUTES;
+        const buffer = parseInt(booking.setup_buffer_minutes ?? DEFAULT_SETUP_BUFFER_MINUTES, 10) || DEFAULT_SETUP_BUFFER_MINUTES;
         return {
             start,
             serviceEnd: start + duration,
@@ -997,9 +1036,9 @@
         return {
             start,
             serviceEnd: start + duration,
-            end: start + duration + PREP_BUFFER_MINUTES,
+            end: start + duration + (parseInt(item.setupBufferMinutes ?? item.setup_buffer_minutes ?? DEFAULT_SETUP_BUFFER_MINUTES, 10) || DEFAULT_SETUP_BUFFER_MINUTES),
             duration,
-            buffer: PREP_BUFFER_MINUTES
+            buffer: (parseInt(item.setupBufferMinutes ?? item.setup_buffer_minutes ?? DEFAULT_SETUP_BUFFER_MINUTES, 10) || DEFAULT_SETUP_BUFFER_MINUTES)
         };
     }
 
@@ -1028,7 +1067,7 @@
 
     function isSlotAvailableForService(timeStr, duration, options = {}) {
         const startMins = timeToMinutes(timeStr);
-        const buffer = options.buffer ?? PREP_BUFFER_MINUTES;
+        const buffer = options.buffer ?? DEFAULT_SETUP_BUFFER_MINUTES;
         const endMins = startMins + (parseInt(duration, 10) || 30) + buffer;
         const startLimit = timeToMinutes(options.startTime || '00:00');
         const endLimit = timeToMinutes(options.endTime || '23:59');
@@ -1089,12 +1128,13 @@
 
         const service = allData.find(d => d.__backendId === srvId);
         const selectedDuration = parseInt(service?.duration || 30, 10) || 30;
+        const setupBuffer = getProfessionalSetupBuffer(prof);
         const dateExceptions = (prof.excecoes || []).filter(e => e.date === date);
         const dbBookings = allData.filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === profId && d.status !== 'cancelado');
         const cartBookings = publicCart.filter(item => item.profId === profId);
 
         // Horários livres configurados pelo usuário, independentes da duração do serviço.
-        // A disponibilidade, porém, considera a duração real do serviço + 15 minutos de preparação.
+        // A disponibilidade, porém, considera a duração real do serviço + o tempo de preparo configurado para o profissional.
         const freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, startTime, endTime, date);
         const slots = freeTimes.map(timeStr => {
             const isBooked = !isSlotAvailableForService(timeStr, selectedDuration, {
@@ -1103,7 +1143,7 @@
                 dateExceptions,
                 bookings: dbBookings,
                 cartItems: cartBookings,
-                buffer: PREP_BUFFER_MINUTES
+                buffer: setupBuffer
             });
             return { time: timeStr, booked: isBooked };
         });
@@ -1130,7 +1170,7 @@
             serviceName: srv.name,
             servicePrice: srv.price,
             serviceDuration: parseInt(srv.duration || 30, 10) || 30,
-            setupBufferMinutes: PREP_BUFFER_MINUTES,
+            setupBufferMinutes: getProfessionalSetupBuffer(prof),
             profId: profId,
             profName: prof.name,
             time: time
@@ -1161,7 +1201,7 @@
             <div class="bg-indigo-50 border border-indigo-100 p-3 rounded-xl flex justify-between items-center">
                 <div>
                     <p class="font-bold text-sm text-indigo-900">${item.serviceName}</p>
-                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span> • ${item.serviceDuration || 30} min + ${PREP_BUFFER_MINUTES} min preparo</p>
+                    <p class="text-xs text-indigo-700">Com ${item.profName} às <span class="font-bold">${item.time}</span> • ${item.serviceDuration || 30} min + ${item.setupBufferMinutes || DEFAULT_SETUP_BUFFER_MINUTES} min preparo</p>
                 </div>
                 <button type="button" onclick="removeCartItem(${idx})" class="text-red-500 hover:bg-red-100 p-1.5 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
             </div>
@@ -1205,7 +1245,7 @@
                     dateExceptions,
                     bookings: dbBookings,
                     cartItems: otherCartItems,
-                    buffer: PREP_BUFFER_MINUTES
+                    buffer: item.setupBufferMinutes || getProfessionalSetupBuffer(prof)
                 });
 
                 if (!stillAvailable) {
@@ -1225,7 +1265,7 @@
                     client_name: name, phone: phone, 
                     service_name: item.serviceName, service_id: item.serviceId, service_price: item.servicePrice || 0,
                     service_duration: item.serviceDuration || getServiceDurationById(item.serviceId, 30),
-                    setup_buffer_minutes: PREP_BUFFER_MINUTES,
+                    setup_buffer_minutes: item.setupBufferMinutes || DEFAULT_SETUP_BUFFER_MINUTES,
                     profissional: item.profName, profissional_id: item.profId,
                     date: date, time: item.time,
                     criado_em: firebase.firestore.FieldValue.serverTimestamp()
@@ -1624,8 +1664,11 @@
         if(!prof) {
             summary.innerHTML = '';
             grid.innerHTML = '<div class="bg-white border border-dashed border-gray-200 rounded-xl p-8 text-center text-gray-400">Cadastre um profissional para visualizar a agenda.</div>';
+            updateProfessionalAlertStatus();
             return;
         }
+
+        updateProfessionalAlertStatus();
 
         const date = dateInput.value;
         const dayOfWeek = new Date(date + 'T12:00:00').getDay();
@@ -1650,6 +1693,7 @@
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-purple-500">
                 <p class="text-xs font-bold text-gray-500 uppercase">Profissional</p>
                 <p class="text-xl font-bold text-gray-800 mt-1">${prof.name || 'Profissional'}</p>
+                <p class="text-xs text-gray-500 mt-1">Intervalo: ${getProfessionalSlotInterval(prof)} min • Preparo: ${getProfessionalSetupBuffer(prof)} min</p>
             </div>
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-green-500">
                 <p class="text-xs font-bold text-gray-500 uppercase">Horários livres</p>
@@ -2126,7 +2170,7 @@
                 <button type="submit" class="w-full bg-blue-600 text-white p-3 rounded-xl font-bold">Salvar Ficha</button>`;
         } 
         else if (type === 'profissional') {
-            let pName = '', pCargo = '', pServs = [], pHorarios = null, pHorariosLivres = null, pHorariosLivresDatas = [], pExcecoes = [];
+            let pName = '', pCargo = '', pServs = [], pHorarios = null, pHorariosLivres = null, pHorariosLivresDatas = [], pExcecoes = [], pSlotInterval = DEFAULT_SLOT_INTERVAL_MINUTES, pSetupBuffer = DEFAULT_SETUP_BUFFER_MINUTES;
             if (editId) {
                 const p = allData.find(d => d.__backendId === editId);
                 if (p) { 
@@ -2136,6 +2180,8 @@
                     pHorarios = p.horarios || null; 
                     pHorariosLivres = p.horariosLivres || null;
                     pHorariosLivresDatas = Array.isArray(p.horariosLivresDatas) ? p.horariosLivresDatas : [];
+                    pSlotInterval = getProfessionalSlotInterval(p);
+                    pSetupBuffer = getProfessionalSetupBuffer(p);
                     pExcecoes = p.excecoes || [];
                 }
                 title.textContent = 'Editar Profissional e Horários';
@@ -2173,6 +2219,22 @@
             form.innerHTML = `
                 <input name="name" value="${pName}" placeholder="Nome do Profissional" required class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none mb-3">
                 <input name="cargo" value="${pCargo}" placeholder="Cargo/Especialidade (ex: Barbeiro, Manicure)" class="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 outline-none mb-4">
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-purple-50 border border-purple-100 rounded-xl p-3">
+                    <div>
+                        <label class="text-xs font-bold text-purple-800 mb-1 block">Intervalo entre horários exibidos</label>
+                        <select name="slot_interval_minutes" class="w-full p-2.5 border border-purple-100 rounded-lg bg-white text-sm outline-none focus:border-purple-500">
+                            ${[5,10,15,20,30,45,60].map(v => `<option value="${v}" ${Number(pSlotInterval) === v ? 'selected' : ''}>${v} minutos</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-purple-800 mb-1 block">Tempo de preparo entre clientes</label>
+                        <select name="setup_buffer_minutes" class="w-full p-2.5 border border-purple-100 rounded-lg bg-white text-sm outline-none focus:border-purple-500">
+                            ${[0,5,10,15,20,30,45,60].map(v => `<option value="${v}" ${Number(pSetupBuffer) === v ? 'selected' : ''}>${v} minutos</option>`).join('')}
+                        </select>
+                    </div>
+                    <p class="sm:col-span-2 text-[11px] text-purple-700">O intervalo define a distância entre os horários automáticos exibidos. O tempo de preparo bloqueia a agenda depois de cada atendimento.</p>
+                </div>
                 
                 <div class="mb-4">
                     <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="sparkles" class="w-3 h-3"></i> Serviços Realizados (Permite agendamento):</label>
@@ -2190,7 +2252,7 @@
 
                 <div class="border-t border-gray-100 pt-4 mt-4">
                     <label class="text-xs font-bold text-gray-500 mb-2 block flex items-center gap-1"><i data-lucide="calendar-clock" class="w-3 h-3"></i> Liberação de Horários por Data:</label>
-                    <p class="text-[11px] text-gray-500 mb-2 bg-purple-50 border border-purple-100 rounded-lg p-2">Escolha a data e informe exatamente os horários que o cliente poderá selecionar nessa data. Separe os horários por vírgula. A disponibilidade continuará respeitando duração do serviço, 15 minutos de preparo, bloqueios e agendamentos já existentes.</p>
+                    <p class="text-[11px] text-gray-500 mb-2 bg-purple-50 border border-purple-100 rounded-lg p-2">Escolha a data e informe exatamente os horários que o cliente poderá selecionar nessa data. Separe os horários por vírgula. A disponibilidade continuará respeitando duração do serviço, tempo de preparo configurado, bloqueios e agendamentos já existentes. Estes horários serão somados aos horários pré-determinados do profissional.</p>
                     <div id="livres-container" class="space-y-1 bg-gray-50 p-2 rounded-xl border border-gray-200"></div>
                     <button type="button" onclick="addLivreRow()" class="mt-2 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 px-3 py-1.5 rounded-lg transition">+ Adicionar Data com Horários Livres</button>
                 </div>
@@ -2421,6 +2483,10 @@
                 fd.delete(`dia_fim_${i}`);
             }
             data.horarios = horarios;
+            data.slot_interval_minutes = parseInt(fd.get('slot_interval_minutes') || DEFAULT_SLOT_INTERVAL_MINUTES, 10) || DEFAULT_SLOT_INTERVAL_MINUTES;
+            data.setup_buffer_minutes = parseInt(fd.get('setup_buffer_minutes') || DEFAULT_SETUP_BUFFER_MINUTES, 10) || DEFAULT_SETUP_BUFFER_MINUTES;
+            fd.delete('slot_interval_minutes');
+            fd.delete('setup_buffer_minutes');
 
             // Nova configuração: horários livres por DATA específica.
             const livreDates = fd.getAll('livre_date[]');
@@ -2433,7 +2499,8 @@
                 }
             }
             data.horariosLivresDatas = horariosLivresDatas;
-            data.horariosLivres = {}; // limpa a configuração semanal antiga ao salvar o profissional
+            // Importante: não limpamos horariosLivres antigos/semanais.
+            // As liberações por data devem SOMAR aos horários pré-determinados, não substituí-los.
 
             // Processar Exceções
             const excDates = fd.getAll('exc_date[]');
@@ -2464,10 +2531,10 @@
             data.service_name = srvSel.options[srvSel.selectedIndex].dataset.name;
             data.service_price = srvSel.options[srvSel.selectedIndex].dataset.price || 0;
             data.service_duration = parseInt(srvSel.options[srvSel.selectedIndex].dataset.duration || 30, 10) || 30;
-            data.setup_buffer_minutes = PREP_BUFFER_MINUTES;
             data.profissional = profSel.options[profSel.selectedIndex].dataset.name;
 
             const prof = allData.find(d => d.__backendId === data.profissional_id);
+            data.setup_buffer_minutes = getProfessionalSetupBuffer(prof);
             const dayOfWeek = new Date(data.date + 'T12:00:00').getDay();
             const base = prof && prof.horarios && prof.horarios[dayOfWeek] ? prof.horarios[dayOfWeek] : { ativo: true, inicio: '09:00', fim: '19:00' };
             const dateExceptions = (prof?.excecoes || []).filter(exc => exc.date === data.date);
@@ -2480,7 +2547,7 @@
                 dateExceptions,
                 bookings: dbBookings,
                 cartItems: [],
-                buffer: PREP_BUFFER_MINUTES
+                buffer: data.setup_buffer_minutes
             });
 
             if (!horarioDisponivel) {
@@ -2708,64 +2775,156 @@
     }
 
     // =========================================================================
-    // SISTEMA DE NOTIFICAÇÕES EM TEMPO REAL (PUSH E SOM)
+    // SISTEMA DE NOTIFICAÇÕES EM TEMPO REAL (PUSH, SOM E FILTRO POR PROFISSIONAL)
     // =========================================================================
     function requestNotificationPermission() {
-        // Solicita permissão ao SO/Navegador para exibir balões de notificação fora da aba
+        // Solicita permissão ao SO/Navegador para exibir balões de notificação fora da aba.
+        // Em alguns celulares, a permissão só aparece após um toque do usuário em um botão.
         if ("Notification" in window && Notification.permission === "default") {
-            Notification.requestPermission();
+            Notification.requestPermission().catch(() => {});
         }
+    }
+
+    function getProfessionalNameById(profId) {
+        const prof = allData.find(d => d.type === 'profissional' && d.__backendId === profId);
+        return prof ? (prof.name || 'Profissional') : '';
+    }
+
+    function updateProfessionalAlertStatus() {
+        const statusEl = document.getElementById('agenda-prof-alert-status');
+        if(!statusEl) return;
+
+        if(professionalAlertId) {
+            const name = getProfessionalNameById(professionalAlertId) || 'profissional selecionado';
+            statusEl.innerHTML = `<span class="font-bold text-indigo-700">Alertas ativos neste aparelho para: ${name}.</span> Mantenha o sistema aberto para receber som e aviso em tela.`;
+        } else {
+            statusEl.textContent = 'Selecione um profissional e toque em ativar para liberar som e notificação neste aparelho.';
+        }
+    }
+
+    async function unlockAlertAudio() {
+        try {
+            if(!alertAudioCtx) {
+                alertAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if(alertAudioCtx.state === 'suspended') {
+                await alertAudioCtx.resume();
+            }
+
+            // Som curto e baixo apenas para desbloquear o áudio no celular.
+            const osc = alertAudioCtx.createOscillator();
+            const gain = alertAudioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(alertAudioCtx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(660, alertAudioCtx.currentTime);
+            gain.gain.setValueAtTime(0.025, alertAudioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, alertAudioCtx.currentTime + 0.12);
+            osc.start();
+            osc.stop(alertAudioCtx.currentTime + 0.12);
+
+            alertSoundUnlocked = true;
+            return true;
+        } catch(e) {
+            console.log('Não foi possível desbloquear áudio neste navegador:', e);
+            return false;
+        }
+    }
+
+    window.activateProfessionalAlerts = async function() {
+        const sel = document.getElementById('agenda-prof-select');
+        const profId = sel ? sel.value : '';
+        if(!profId) {
+            showToast('Selecione um profissional antes de ativar os alertas.', 'error');
+            return;
+        }
+
+        professionalAlertId = profId;
+        localStorage.setItem('gb_professional_alert_id', profId);
+        requestNotificationPermission();
+        await unlockAlertAudio();
+
+        const profName = getProfessionalNameById(profId) || 'profissional selecionado';
+        updateProfessionalAlertStatus();
+        showToast(`Alertas ativados para ${profName}. Mantenha o sistema aberto no celular.`, 'success');
+    };
+
+    window.disableProfessionalAlerts = function() {
+        professionalAlertId = '';
+        localStorage.removeItem('gb_professional_alert_id');
+        updateProfessionalAlertStatus();
+        showToast('Alertas do profissional desativados neste aparelho.', 'success');
+    };
+
+    function shouldNotifyNewBooking(appt) {
+        const belongsToCurrentSalon = (!appt.userId || appt.userId === currentUserId || currentUserId === 'admin_default');
+        if(!belongsToCurrentSalon) return false;
+
+        // Se um profissional ativou os alertas neste aparelho, só avisa agendamentos dele.
+        if(professionalAlertId) {
+            return appt.profissional_id === professionalAlertId;
+        }
+
+        // Sem filtro ativo, mantém o comportamento original: avisa todos os agendamentos do salão.
+        return true;
     }
 
     function playAlertSound() {
         try {
-            // Usa a API nativa do navegador para criar um som de "Ding" sem precisar de arquivos externos
-            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const ctx = alertAudioCtx || new (window.AudioContext || window.webkitAudioContext)();
+            alertAudioCtx = ctx;
+
+            if(ctx.state === 'suspended') {
+                ctx.resume().catch(() => {});
+            }
+
+            // Em celulares, o som automático pode ser bloqueado se o usuário não tiver ativado antes.
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.connect(gain);
             gain.connect(ctx.destination);
             
-            osc.type = 'sine'; // Som limpo e suave
-            osc.frequency.setValueAtTime(880, ctx.currentTime); // Nota A5
-            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.1);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.14);
             
-            gain.gain.setValueAtTime(0.1, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.16, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.65);
             
             osc.start();
-            osc.stop(ctx.currentTime + 0.5);
+            osc.stop(ctx.currentTime + 0.65);
         } catch(e) { 
-            console.log("Áudio bloqueado pelo navegador. (Usuário precisa interagir com a tela antes de permitir som automático)"); 
+            console.log('Áudio bloqueado pelo navegador. O usuário precisa tocar em Ativar Alertas antes.', e); 
         }
     }
 
     window.dispararNotificacaoNovoAgendamento = function(appt) {
-        const titulo = "🔔 Novo Agendamento Online!";
-        const corpo = `${appt.client_name} agendou ${appt.service_name} no dia ${formatDate(appt.date)} às ${appt.time}.`;
+        const profName = appt.profissional || getProfessionalNameById(appt.profissional_id) || 'Profissional';
+        const titulo = "🔔 Novo Agendamento!";
+        const corpo = `${appt.client_name} agendou ${appt.service_name} com ${profName} no dia ${formatDate(appt.date)} às ${appt.time}.`;
         
         // 1. Toca som de aviso
         playAlertSound();
 
         // 2. Notificação Visual dentro do sistema (Toast Azul)
-        showToast(`<b>Novo Agendamento:</b><br>${appt.client_name} - ${appt.time}`, 'info');
+        showToast(`<b>Novo Agendamento:</b><br>${appt.client_name} - ${appt.service_name}<br>${profName} às ${appt.time}`, 'info');
 
-        // 3. Notificação Push no Sistema Operacional (Desktop/Android)
+        // 3. Notificação Push no Sistema Operacional (Desktop/Android quando permitido)
         if ("Notification" in window && Notification.permission === "granted") {
             try {
                 const notification = new Notification(titulo, { 
                     body: corpo,
-                    icon: "https://cdn-icons-png.flaticon.com/512/825/825590.png" // Ícone genérico para ilustrar
+                    icon: "https://cdn-icons-png.flaticon.com/512/825/825590.png"
                 });
                 
-                // Se o usuário clicar na notificação nativa, a tela foca na aba e abre a agenda
                 notification.onclick = function() {
                     window.focus();
-                    switchTabAdmin('agendamentos');
+                    switchTabAdmin('agenda-profissionais');
                 };
             } catch(e) {}
         }
     };
+
 
 </script>
 </body>
