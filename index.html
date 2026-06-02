@@ -435,7 +435,7 @@
                     </div>
                 </div>
 
-                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-5 gap-3">
                     <div>
                         <label class="text-xs font-bold text-gray-500 mb-1 block">Profissional</label>
                         <select id="agenda-prof-select" onchange="renderAgendaProfissionais()" class="w-full p-3 border border-gray-200 rounded-xl text-sm bg-white focus:ring-[#c41e3a] outline-none"></select>
@@ -447,6 +447,14 @@
                     <div>
                         <label class="text-xs font-bold text-gray-500 mb-1 block">Serviço para testar disponibilidade</label>
                         <select id="agenda-prof-service" onchange="renderAgendaProfissionais()" class="w-full p-3 border border-gray-200 rounded-xl text-sm bg-white focus:ring-[#c41e3a] outline-none"></select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-gray-500 mb-1 block">Filtro de horários</label>
+                        <select id="agenda-prof-view-filter" onchange="renderAgendaProfissionais()" class="w-full p-3 border border-gray-200 rounded-xl text-sm bg-white focus:ring-[#c41e3a] outline-none">
+                            <option value="available">Disponíveis no dia</option>
+                            <option value="configured">Todos configurados/base</option>
+                            <option value="booked">Somente agendados</option>
+                        </select>
                     </div>
                     <div class="flex items-end">
                         <button onclick="renderAgendaProfissionais()" class="w-full bg-[#c41e3a] text-white p-3 rounded-xl font-bold hover:bg-[#a01729] transition flex items-center justify-center gap-2">
@@ -470,7 +478,7 @@
                     </div>
                 </div>
 
-                <div id="agenda-prof-summary" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+                <div id="agenda-prof-summary" class="grid grid-cols-1 md:grid-cols-4 gap-4"></div>
                 <div id="agenda-prof-grid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
             </section>
 
@@ -1657,6 +1665,7 @@
         const servs = allData.filter(d => d.type === 'servico').sort((a,b) => (a.name||'').localeCompare(b.name||''));
         const sel = document.getElementById('agenda-prof-select');
         const serviceSel = document.getElementById('agenda-prof-service');
+        const viewFilterEl = document.getElementById('agenda-prof-view-filter');
         const dateInput = document.getElementById('agenda-prof-date');
         const summary = document.getElementById('agenda-prof-summary');
         const grid = document.getElementById('agenda-prof-grid');
@@ -1702,19 +1711,22 @@
             .filter(d => d.type === 'agendamento' && d.date === date && d.profissional_id === profId && d.status !== 'cancelado')
             .sort((a,b) => (a.time||'').localeCompare(b.time||''));
 
+        const viewFilter = viewFilterEl ? viewFilterEl.value : 'available';
+        let configuredTimes = [];
         let freeTimes = [];
         if(base.ativo !== false) {
-            freeTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date)
-                .filter(t => isSlotAvailableForService(t, selectedDuration, {
-                    startTime: base.inicio || '09:00',
-                    endTime: base.fim || '19:00',
-                    dateExceptions,
-                    bookings,
-                    cartItems: [],
-                    buffer: setupBuffer
-                }));
+            configuredTimes = getProfessionalFreeSlots(prof, dayOfWeek, base.inicio || '09:00', base.fim || '19:00', date);
+            freeTimes = configuredTimes.filter(t => isSlotAvailableForService(t, selectedDuration, {
+                startTime: base.inicio || '09:00',
+                endTime: base.fim || '19:00',
+                dateExceptions,
+                bookings,
+                cartItems: [],
+                buffer: setupBuffer
+            }));
         }
 
+        const unavailableTimes = configuredTimes.filter(t => !freeTimes.includes(t));
         const serviceLabel = selectedService ? selectedService.name : 'serviço padrão';
 
         summary.innerHTML = `
@@ -1729,19 +1741,36 @@
                 <p class="text-xs text-gray-500 mt-1">${selectedDuration} min + ${setupBuffer} min preparo</p>
             </div>
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-green-500">
-                <p class="text-xs font-bold text-gray-500 uppercase">Horários realmente disponíveis</p>
+                <p class="text-xs font-bold text-gray-500 uppercase">Disponíveis no dia</p>
                 <p class="text-2xl font-bold text-green-600 mt-1">${freeTimes.length}</p>
+                <p class="text-xs text-gray-500 mt-1">de ${configuredTimes.length} horários configurados</p>
             </div>
             <div class="bg-white rounded-xl p-4 border border-gray-200 shadow-sm border-l-4 border-[#c41e3a]">
                 <p class="text-xs font-bold text-gray-500 uppercase">Agendados</p>
                 <p class="text-2xl font-bold text-[#c41e3a] mt-1">${bookings.length}</p>
             </div>`;
 
-        const livresHtml = base.ativo === false
-            ? '<p class="text-sm text-red-500 font-bold bg-red-50 border border-red-100 rounded-xl p-4">Este profissional está marcado como folga neste dia da semana.</p>'
-            : (freeTimes.length === 0
-                ? `<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">Nenhum horário comporta ${serviceLabel} nesta data, considerando duração, preparo, bloqueios e agendamentos já existentes.</p>`
-                : `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">${freeTimes.map(t => `<span class="text-center bg-green-50 border border-green-100 text-green-700 rounded-lg py-2 text-sm font-bold">${t}</span>`).join('')}</div>`);
+        let horariosTitulo = `Horários disponíveis no dia para ${serviceLabel}`;
+        let livresHtml = '';
+        if (base.ativo === false) {
+            livresHtml = '<p class="text-sm text-red-500 font-bold bg-red-50 border border-red-100 rounded-xl p-4">Este profissional está marcado como folga neste dia da semana.</p>';
+        } else if (viewFilter === 'booked') {
+            horariosTitulo = 'Filtro aplicado: somente horários agendados';
+            livresHtml = '<p class="text-sm text-gray-500 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">Os horários agendados aparecem no quadro ao lado.</p>';
+        } else if (viewFilter === 'configured') {
+            horariosTitulo = 'Todos os horários configurados/base desta data';
+            livresHtml = configuredTimes.length === 0
+                ? '<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">Nenhum horário configurado para esta data.</p>'
+                : `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">${configuredTimes.map(t => {
+                    const available = freeTimes.includes(t);
+                    return `<span class="text-center ${available ? 'bg-green-50 border-green-100 text-green-700' : 'bg-gray-100 border-gray-200 text-gray-400 line-through'} border rounded-lg py-2 text-sm font-bold" title="${available ? 'Disponível no dia' : 'Indisponível por agendamento, bloqueio, duração ou preparo'}">${t}</span>`;
+                }).join('')}</div>
+                <p class="text-xs text-gray-500 mt-3">Verde = disponível no dia. Riscado = indisponível por atendimento, bloqueio, duração do serviço ou tempo de preparo.</p>`;
+        } else {
+            livresHtml = freeTimes.length === 0
+                ? `<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">Nenhum horário disponível no dia comporta ${serviceLabel}, considerando duração, preparo, bloqueios e agendamentos já existentes.</p>`
+                : `<div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">${freeTimes.map(t => `<span class="text-center bg-green-50 border border-green-100 text-green-700 rounded-lg py-2 text-sm font-bold">${t}</span>`).join('')}</div>`;
+        }
 
         const agendaHtml = bookings.length === 0
             ? '<p class="text-sm text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded-xl p-4">Nenhum agendamento para esta data.</p>'
@@ -1762,7 +1791,7 @@
 
         grid.innerHTML = `
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
-                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4 text-green-600"></i> Horários disponíveis para ${serviceLabel}</h3>
+                <h3 class="font-bold text-gray-800 mb-3 flex items-center gap-2"><i data-lucide="clock" class="w-4 h-4 text-green-600"></i> ${horariosTitulo}</h3>
                 ${livresHtml}
             </div>
             <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
