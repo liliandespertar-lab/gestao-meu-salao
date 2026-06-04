@@ -681,6 +681,8 @@
     const DEFAULT_SLOT_INTERVAL_MINUTES = 30; // Intervalo padrão para gerar horários automáticos quando não houver horários livres cadastrados.
     const PREP_BUFFER_MINUTES = DEFAULT_SETUP_BUFFER_MINUTES; // Compatibilidade com agendamentos antigos.
     let isInitialLoad = true; // Controle para não notificar agendamentos antigos ao carregar a página pela 1ª vez
+    let dataUnsubscribe = null; // Evita múltiplos ouvintes do Firestore e reduz travamentos no celular
+    let activeAdminTab = 'dashboard'; // Renderiza apenas a aba ativa para aliviar o carregamento no celular
 
     // Alertas sonoros por profissional: ficam salvos no próprio aparelho/navegador.
     // No celular, o som só é confiável depois de o usuário tocar no botão para ativar.
@@ -730,6 +732,64 @@
         }
     };
 
+    // --- OUVINTE OTIMIZADO DO FIRESTORE ---
+    function stopDataListener() {
+        if (typeof dataUnsubscribe === 'function') {
+            try { dataUnsubscribe(); } catch(e) {}
+        }
+        dataUnsubscribe = null;
+        allDataGlobal = [];
+        allData = [];
+        isInitialLoad = true;
+    }
+
+    function startDataListener(targetUserId) {
+        if (!targetUserId) {
+            setLoading(false);
+            return;
+        }
+
+        // Troca de empresa/login: fecha o listener anterior antes de abrir outro.
+        if (typeof dataUnsubscribe === 'function') {
+            try { dataUnsubscribe(); } catch(e) {}
+            dataUnsubscribe = null;
+        }
+
+        isInitialLoad = true;
+        setLoading(true, "A carregar dados do salão...");
+
+        // IMPORTANTE PARA CELULAR:
+        // Antes o app ouvia a coleção inteira salao_data, de todas as empresas.
+        // Em celulares isso podia travar ou demorar muito. Agora cada acesso baixa
+        // apenas os registros do salão/empresa atual.
+        let query = db.collection(COLLECTION_NAME).where('userId', '==', targetUserId);
+
+        dataUnsubscribe = query.onSnapshot((snapshot) => {
+            if (!isInitialLoad && !isClientView) {
+                snapshot.docChanges().forEach((change) => {
+                    if (change.type === 'added') {
+                        const data = change.doc.data();
+                        if (data.type === 'agendamento' && shouldNotifyNewBooking(data)) {
+                            dispararNotificacaoNovoAgendamento(data);
+                        }
+                    }
+                });
+            }
+
+            allDataGlobal = [];
+            snapshot.forEach((doc) => {
+                allDataGlobal.push({ ...doc.data(), __backendId: doc.id });
+            });
+
+            filterAndRenderData();
+            isInitialLoad = false;
+        }, (error) => {
+            console.error("Erro na base de dados:", error);
+            showToast("Erro ao carregar dados. Verifique a internet e as regras do Firebase.", "error");
+            setLoading(false);
+        });
+    }
+
     // --- OUVINTE DE ESTADO DE AUTENTICAÇÃO ---
     auth.onAuthStateChanged(user => {
         // =========================================================
@@ -747,8 +807,7 @@
             document.getElementById('client-view')?.classList.remove('hidden');
 
             setupClientView();
-            filterAndRenderData();
-            setLoading(false);
+            startDataListener(urlSalonId);
             return;
         }
 
@@ -761,6 +820,7 @@
                 document.getElementById('admin-view').classList.add('hidden');
                 document.getElementById('client-view').classList.add('hidden');
                 document.getElementById('master-view').classList.remove('hidden');
+                stopDataListener();
                 loadEmpresas();
                 setLoading(false);
             } else {
@@ -781,8 +841,8 @@
                 }
 
                 switchTabAdmin('dashboard');
-                filterAndRenderData();
-                requestNotificationPermission(); // Pede permissão para mostrar notificações no PC/Celular
+                startDataListener(currentUserId);
+                // No celular, notificações/som são ativados por toque no botão "Ativar Alertas".
             }
         } else {
             sessionStorage.removeItem('impersonating');
@@ -794,10 +854,11 @@
                 document.getElementById('client-view').classList.add('hidden');
                 document.getElementById('admin-view').classList.remove('hidden');
                 switchTabAdmin('dashboard');
-                filterAndRenderData();
-                requestNotificationPermission(); // Pede permissão para mostrar notificações no PC/Celular
+                startDataListener(currentUserId);
+                // No celular, notificações/som são ativados por toque no botão "Ativar Alertas".
             } else {
                 currentUserId = null;
+                stopDataListener();
                 if (!isClientView) {
                     document.getElementById('login-view').classList.remove('hidden');
                     document.getElementById('admin-view').classList.add('hidden');
@@ -815,46 +876,14 @@
         
         setTimeout(() => {
             const loader = document.getElementById('loader');
-            if (!loader.classList.contains('hidden')) {
+            if (loader && !loader.classList.contains('hidden')) {
                 setLoading(false);
             }
-        }, 6000);
+        }, 8000);
 
         if (isClientView) {
             document.getElementById('client-view').classList.remove('hidden');
             setupClientView();
-        }
-        
-        try {
-            db.collection(COLLECTION_NAME).onSnapshot((snapshot) => {
-                
-                // VERIFICA SE HÁ NOVOS AGENDAMENTOS EM TEMPO REAL (Ignora no 1º carregamento e na vista do cliente)
-                if (!isInitialLoad && !isClientView) {
-                    snapshot.docChanges().forEach((change) => {
-                        if (change.type === 'added') {
-                            const data = change.doc.data();
-                            // Dispara notificação se for um novo agendamento para o admin atual
-                            if (data.type === 'agendamento' && shouldNotifyNewBooking(data)) {
-                                dispararNotificacaoNovoAgendamento(data);
-                            }
-                        }
-                    });
-                }
-
-                allDataGlobal = [];
-                snapshot.forEach((doc) => {
-                    allDataGlobal.push({ ...doc.data(), __backendId: doc.id });
-                });
-                filterAndRenderData();
-                
-                isInitialLoad = false; // Finaliza o carregamento inicial
-            }, (error) => {
-                console.error("Erro na base de dados:", error);
-                setLoading(false);
-            });
-        } catch (e) { 
-            console.error(e); 
-            setLoading(false); 
         }
         
         try { lucide.createIcons(); } catch(e) {}
@@ -1643,20 +1672,28 @@
                 }
             }
         });
+        activeAdminTab = tab;
+        renderCurrentAdminTab();
         try { lucide.createIcons(); } catch(e) {}
+    }
+
+    function renderCurrentAdminTab() {
+        if (!Array.isArray(allData)) return;
+        if (activeAdminTab === 'dashboard') updateDashboard();
+        else if (activeAdminTab === 'agendamentos') renderAgendamentos();
+        else if (activeAdminTab === 'agenda-profissionais') renderAgendaProfissionais();
+        else if (activeAdminTab === 'clientes') renderClientes();
+        else if (activeAdminTab === 'equipe') renderEquipe();
+        else if (activeAdminTab === 'servicos') renderServicos();
+        else if (activeAdminTab === 'estoque') renderEstoque();
+        else if (activeAdminTab === 'financeiro') renderFinanceiro();
+        else if (activeAdminTab === 'fornecedores') renderFornecedores();
+        else if (activeAdminTab === 'aniversariantes') renderAniversariantes();
     }
 
     function renderAllAdmin() {
         updateDashboard();
-        renderAgendamentos(); 
-        renderAgendaProfissionais();
-        renderClientes(); 
-        renderEquipe(); 
-        renderServicos(); 
-        renderEstoque(); 
-        renderFinanceiro(); 
-        renderFornecedores(); 
-        renderAniversariantes();
+        renderCurrentAdminTab();
     }
 
     // ABA DASHBOARD ESTATÍSTICAS
